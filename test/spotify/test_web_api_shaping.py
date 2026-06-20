@@ -86,6 +86,17 @@ def test_search_delegates_to_spotipy_client():
     assert results[0]['uri'] == 'spotify:track:T'
 
 
+def test_search_clamps_oversized_limit():
+    # Spotify returns HTTP 400 "Invalid limit" for large limits on dev-mode
+    # apps; the client must clamp to _MAX_SEARCH_LIMIT before calling out.
+    api = spotify_web_api.SpotifyWebApi(client_id=None)
+    api._client = mock.MagicMock()
+    api._client.search.return_value = {}
+    api.search('query', types='track,album,playlist', limit=50)
+    _, kwargs = api._client.search.call_args
+    assert kwargs['limit'] == spotify_web_api._MAX_SEARCH_LIMIT
+
+
 def test_get_metadata_track():
     api = spotify_web_api.SpotifyWebApi(client_id=None)
     api._client = mock.MagicMock()

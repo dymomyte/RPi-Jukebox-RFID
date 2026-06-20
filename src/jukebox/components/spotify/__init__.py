@@ -364,7 +364,7 @@ class SpotifyPlayer:
 # 'spotify'. They delegate to the SpotifyWebApi instance in spotify_web_api.
 # ---------------------------------------------------------------------------
 @plugs.register
-def search(query: str, types: str = 'track,album,playlist', limit: int = 20):
+def search(query: str, types: str = 'track,album,playlist', limit: int = 10):
     """RPC: search Spotify (see :meth:`spotify_web_api.SpotifyWebApi.search`)."""
     if spotify_web_api.web_api is None:
         return []

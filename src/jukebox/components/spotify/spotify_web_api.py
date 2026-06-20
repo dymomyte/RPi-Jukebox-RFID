@@ -29,6 +29,12 @@ logger = logging.getLogger('jb.spotify.webapi')
 # 'streaming' + 'user-read-*' allow future Connect control via the Web API too.
 _SCOPE = 'user-read-playback-state user-modify-playback-state streaming user-read-email user-read-private'
 
+# Spotify rejects search 'limit' values above ~10 with HTTP 400 "Invalid limit"
+# for apps on the default (development-mode) quota -- despite the documented
+# 0-50 range. Clamp to a value that is reliably accepted. (Observed on a real
+# dev-mode app: limit=10 works, 16+ returns 400.)
+_MAX_SEARCH_LIMIT = 10
+
 
 class SpotifyWebApi:
     """Wrapper around spotipy providing webapp-friendly search and metadata.
@@ -129,17 +135,19 @@ class SpotifyWebApi:
         publishing.get_publisher().send('spotify.auth_status', self.auth_status())
 
     # -- search & metadata --------------------------------------------------
-    def search(self, query: str, types: str = 'track,album,playlist', limit: int = 20):
+    def search(self, query: str, types: str = 'track,album,playlist', limit: int = _MAX_SEARCH_LIMIT):
         """Search Spotify, returning a flat list of webapp-friendly items.
 
         :param query: Free-text search query
         :param types: Comma-separated Spotify object types
-        :param limit: Max items per type
+        :param limit: Max items per type (clamped to ``_MAX_SEARCH_LIMIT`` to
+            avoid Spotify's dev-mode "Invalid limit" 400)
         :return: list of dicts ``{uri, type, name, artists, album, cover_url, duration_ms}``
         """
         if self._client is None:
             logger.warning("Spotify search unavailable: Web API not configured")
             return []
+        limit = max(1, min(limit, _MAX_SEARCH_LIMIT))
         try:
             raw = self._client.search(q=query, type=types, limit=limit)
         except Exception as e:
