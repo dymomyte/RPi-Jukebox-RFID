@@ -15,7 +15,6 @@ const SpotifyResultItem = ({
   onSelect,
 }) => {
   const {
-    uri,
     name,
     artists = [],
     album,
