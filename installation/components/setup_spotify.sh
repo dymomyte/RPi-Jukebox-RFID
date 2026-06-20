@@ -136,12 +136,13 @@ install_binary() {
 # Write the go-librespot config.yml.
 #
 # Config keys verified against go-librespot's config_schema.json / README:
-#   - audio_backend: pulseaudio  -> routes audio into the user's PulseAudio
-#       session. This is the SAME PulseAudio server (and therefore the same
-#       default sink) the Jukebox configures via run_configure_audio.py, so
-#       Spotify plays out of the same speakers as the local MPD library and
-#       respects the jukebox volume control. We intentionally do NOT pin
-#       `audio_device` so go-librespot follows PulseAudio's default sink.
+#   - audio_backend: alsa + audio_device: pulse -> routes audio through ALSA's
+#       "pulse" PCM into the user's PulseAudio session (the SAME path MPD uses).
+#       Spotify therefore plays out of the same sink/speakers as the local MPD
+#       library and respects the jukebox volume control. The native 'pulseaudio'
+#       backend is NOT used: the release binary ships without libpulse, so it
+#       hangs on play; the ALSA backend (libasound is linked) is the reliable
+#       route on a Phoniebox where the ALSA "pulse" plugin is configured.
 #   - server.enabled/address/port -> the local REST API the Jukebox drives.
 #   - credentials.type: zeroconf -> headless-friendly login: pick the box from
 #       the Spotify app's device list (Spotify Connect). persist_credentials
@@ -170,10 +171,14 @@ write_config() {
 device_name: ${GO_LIBRESPOT_DEVICE_NAME}
 device_type: speaker
 
-# Route audio through PulseAudio so Spotify shares the same sink/volume as the
-# rest of the Jukebox (configured by run_configure_audio.py). Leave audio_device
-# unset to follow PulseAudio's default sink.
-audio_backend: pulseaudio
+# Route audio through ALSA's "pulse" PCM -- the same path MPD uses (see
+# ~/.config/mpd/mpd.conf, device "pulse"). The go-librespot release binary is
+# built WITHOUT libpulse, so its native 'pulseaudio' backend cannot connect and
+# hangs on the first play. The ALSA backend (libasound IS linked) via the
+# "pulse" device routes into the same PulseAudio sink/volume as the rest of the
+# Jukebox, so Spotify shares the speakers and volume with the local library.
+audio_backend: alsa
+audio_device: pulse
 
 # Local REST API the Jukebox 'spotify' component controls.
 server:
