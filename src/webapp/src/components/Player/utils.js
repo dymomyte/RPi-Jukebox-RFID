@@ -5,21 +5,20 @@
 // The Spotify payload is normalised into the same shape the rest of the
 // Player components already consume (title, artist, album, songid, file, ...).
 const normalizeSpotifyStatus = (spotifyStatus) => {
+  const { state, track, elapsed_ms } = spotifyStatus;
+  // The `spotify.status` payload nests the track fields under `track`
+  // ({uri, name, artists, album, cover_url, duration_ms}); flatten them into
+  // the shape the Player components consume (title, artist, songid, ...).
   const {
-    state,
     uri,
-    title,
+    name,
     artists,
-    artist,
     album,
     cover_url,
     duration_ms,
-    elapsed_ms,
-  } = spotifyStatus;
+  } = track || {};
 
-  const resolvedArtist = Array.isArray(artists)
-    ? artists.join(', ')
-    : artist;
+  const resolvedArtist = Array.isArray(artists) ? artists.join(', ') : undefined;
 
   return {
     ...spotifyStatus,
@@ -27,7 +26,7 @@ const normalizeSpotifyStatus = (spotifyStatus) => {
     // `songid`/`file` are used as "is something playing" markers downstream.
     songid: uri,
     file: uri,
-    title,
+    title: name,
     artist: resolvedArtist,
     album,
     cover_url,
