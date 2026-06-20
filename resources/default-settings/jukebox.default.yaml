@@ -12,6 +12,7 @@ modules:
     jingle.alsawave: jingle.alsawave
     jingle.jinglemp3: jingle.jinglemp3
     player: playermpd
+    spotify: spotify
     cards: rfid.cards
     rfid: rfid.reader
     timers: timers
@@ -93,6 +94,23 @@ playermpd:
   stopped_prev_action: prev
   # Must be one of: 'none', 'next', 'rewind':
   stopped_next_action: next
+spotify:
+  # Enable the Spotify player backend (requires go-librespot + a Spotify Premium account)
+  enable: true
+  go_librespot:
+    # Host and port of the local go-librespot REST/WebSocket control API
+    host: localhost
+    port: 3678
+  # Interval in seconds for polling go-librespot for player status
+  status_poll_interval: 0.25
+  web_api:
+    # Enable the Spotify Web API client for search/browse/metadata in the WebUI
+    enable: true
+    # Local redirect port for the OAuth flow.
+    # The redirect URI registered in the Spotify app must be http://127.0.0.1:<port>/callback (IP, not localhost)
+    redirect_port: 8080
+  # Spotify Web API credentials (client_id/client_secret). Keep secrets out of the main config.
+  credentials_file: ../../shared/settings/spotify.yaml
 rpc:
   tcp_port: 5555
   websocket_port: 5556

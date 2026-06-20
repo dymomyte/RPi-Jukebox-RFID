@@ -10,11 +10,16 @@ import Volume from './volume';
 
 import AppSettingsContext from '../../context/appsettings/context';
 import PlayerContext from '../../context/player/context';
+import PubSubContext from '../../context/pubsub/context';
 import request from '../../utils/request';
+import { getEffectivePlayerStatus } from './utils';
 
 const Player = () => {
   const { state: { playerstatus } } = useContext(PlayerContext);
-  const { file } = playerstatus || {};
+  const { state: { 'spotify.status': spotifyStatus } } = useContext(PubSubContext);
+
+  const effectiveStatus = getEffectivePlayerStatus(playerstatus, spotifyStatus);
+  const { file, cover_url, isSpotify } = effectiveStatus;
 
   const [coverImage, setCoverImage] = useState(undefined);
   const [backgroundImage, setBackgroundImage] = useState('none');
@@ -26,21 +31,33 @@ const Player = () => {
   const { show_covers } = settings;
 
   useEffect(() => {
+    const applyCover = (src) => {
+      setCoverImage(src);
+      setBackgroundImage([
+        'linear-gradient(to bottom, rgba(18, 18, 18, 0.5), rgba(18, 18, 18, 1))',
+        `url(${src})`
+      ].join(','));
+    };
+
     const getCoverArt = async () => {
       const { result } = await request('getSingleCoverArt', { song_url: file });
       if (result) {
-        setCoverImage(`/cover-cache/${result}`);
-        setBackgroundImage([
-          'linear-gradient(to bottom, rgba(18, 18, 18, 0.5), rgba(18, 18, 18, 1))',
-          `url(/cover-cache/${result})`
-        ].join(','));
+        applyCover(`/cover-cache/${result}`);
       };
     }
 
-    if (file && show_covers) {
+    if (!show_covers) {
+      return;
+    }
+
+    // Spotify covers are served as remote URLs by the Web API; pass them
+    // through directly instead of going through the local cover cache.
+    if (isSpotify && cover_url) {
+      applyCover(cover_url);
+    } else if (file) {
       getCoverArt();
     }
-  }, [file]);
+  }, [file, cover_url, isSpotify, show_covers]);
 
   return (
     <Grid

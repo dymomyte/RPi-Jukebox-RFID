@@ -66,3 +66,6 @@
       alias: change_volume
       args: -3
       ignore_card_removal_action: true
+'SPOTIFYTRACK':
+      alias: play_spotify
+      args: spotify:track:4uLU6hMCjMI75M1A2tKUQC

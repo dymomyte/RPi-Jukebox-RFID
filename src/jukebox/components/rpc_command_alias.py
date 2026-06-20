@@ -80,6 +80,13 @@ cmd_alias_definitions = {
         'plugin': 'ctrl',
         'method': 'flush_coverart_cache'},
 
+    # SPOTIFY
+    'play_spotify': {
+        'title': 'Play a Spotify URI triggered by card swipe',
+        'package': 'spotify',
+        'plugin': 'ctrl',
+        'method': 'play_spotify'},
+
     # VOLUME
     'set_volume': {
         'package': 'volume',

@@ -9,6 +9,7 @@
 ## Reference
 
 * [Jukebox Apps](./coreapps.md)
+* [Spotify backend](./spotify.md)
 * [Web App](./webapp.md)
 * [RFID Readers](./rfid/README.md)
 * [Docstring API Docs (from py files)](./docstring/README.md)
