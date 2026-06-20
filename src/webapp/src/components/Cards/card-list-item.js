@@ -8,6 +8,7 @@ import {
   ListItem,
   ListItemAvatar,
   ListItemText,
+  Stack,
 } from '@mui/material';
 import BookmarkIcon from '@mui/icons-material/Bookmark';
 
@@ -67,9 +68,19 @@ const CardListItem = ({ cardId, card }) => {
 
   let secondary = fallbackDescription;
   let avatar = <Avatar><BookmarkIcon /></Avatar>;
-  let chip = null;
+  const chips = [];
 
   if (isSpotify) {
+    // Always flag the card as Spotify-linked.
+    chips.push(
+      <Chip
+        key="spotify"
+        label="Spotify"
+        color="success"
+        size="small"
+        sx={{ flexShrink: 0 }}
+      />
+    );
     if (meta) {
       const artistLine = (meta.artists || []).join(', ');
       secondary = artistLine ? `${meta.name} — ${artistLine}` : meta.name;
@@ -81,27 +92,19 @@ const CardListItem = ({ cardId, card }) => {
         );
       }
       if (meta.type) {
-        chip = (
+        chips.push(
           <Chip
+            key="type"
             label={meta.type}
             color={TYPE_COLORS[meta.type] || 'default'}
             size="small"
-            sx={{ ml: 1, flexShrink: 0, textTransform: 'capitalize' }}
+            sx={{ flexShrink: 0, textTransform: 'capitalize' }}
           />
         );
       }
     } else {
       // Loading, or unresolved (e.g. Web API not authorised yet).
       secondary = 'Spotify';
-      chip = (
-        <Chip
-          label="Spotify"
-          color="success"
-          size="small"
-          variant="outlined"
-          sx={{ ml: 1, flexShrink: 0 }}
-        />
-      );
     }
   }
 
@@ -120,7 +123,11 @@ const CardListItem = ({ cardId, card }) => {
         primaryTypographyProps={{ noWrap: true }}
         secondaryTypographyProps={{ noWrap: true }}
       />
-      {chip}
+      {chips.length > 0 && (
+        <Stack direction="row" spacing={1} sx={{ ml: 1, flexShrink: 0 }}>
+          {chips}
+        </Stack>
+      )}
     </ListItem>
   );
 };
