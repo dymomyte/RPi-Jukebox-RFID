@@ -456,7 +456,7 @@ def initialize():
                        "(run ./run_register_spotify.sh or set them in the Web App)")
 
     # Publish initial auth status
-    publishing.get_publisher().send('spotify.auth_status', spotify_web_api.auth_status())
+    publishing.get_publisher().send('spotify.auth_status', auth_status())
 
 
 @plugs.atexit
