@@ -114,3 +114,17 @@ def test_get_metadata_invalid_uri_returns_empty():
     api = spotify_web_api.SpotifyWebApi(client_id=None)
     api._client = mock.MagicMock()
     assert api.get_metadata('not-a-uri') == {}
+
+
+def test_get_metadata_is_cached_per_uri():
+    # Immutable per URI -> the second lookup must not re-hit the Web API.
+    api = spotify_web_api.SpotifyWebApi(client_id=None)
+    api._client = mock.MagicMock()
+    api._client.track.return_value = {
+        'uri': 'spotify:track:T', 'name': 'N', 'artists': [],
+        'album': {}, 'duration_ms': 100,
+    }
+    first = api.get_metadata('spotify:track:T')
+    second = api.get_metadata('https://open.spotify.com/track/T')  # same id, diff form
+    assert first == second
+    api._client.track.assert_called_once_with('T')

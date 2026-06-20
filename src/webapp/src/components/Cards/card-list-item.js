@@ -21,6 +21,11 @@ const TYPE_COLORS = {
   playlist: 'success',
 };
 
+// Session-lifetime cache of resolved Spotify metadata, keyed by URI. Avoids
+// re-fetching (and the placeholder flash) when navigating back to the Cards
+// page. The backend also caches per URI, so a reload only re-hits Spotify once.
+const metaCache = new Map();
+
 const EditCardLink = forwardRef((props, ref) => {
   const { data } = props;
   const location = {
@@ -40,14 +45,15 @@ const CardListItem = ({ cardId, card }) => {
     ? (Array.isArray(card.action?.args) ? card.action.args[0] : card.action?.args)
     : null;
 
-  const [meta, setMeta] = useState(null);
+  const [meta, setMeta] = useState(() => (uri && metaCache.get(uri)) || null);
 
   useEffect(() => {
     let active = true;
-    if (isSpotify && uri) {
+    if (isSpotify && uri && !metaCache.has(uri)) {
       request('spotifyGetMetadata', { uri }).then(({ result }) => {
-        if (active && result && result.name) {
-          setMeta(result);
+        if (result && result.name) {
+          metaCache.set(uri, result);
+          if (active) setMeta(result);
         }
       });
     }

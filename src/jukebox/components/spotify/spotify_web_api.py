@@ -59,6 +59,9 @@ class SpotifyWebApi:
         self.cache_path = cache_path
         self._auth_manager = None
         self._client = None
+        # Per-URI metadata cache (Spotify object metadata is immutable), so the
+        # card list / repeated lookups don't re-hit the Web API every render.
+        self._metadata_cache = {}
         self._build_client()
 
     def _build_client(self):
@@ -170,18 +173,25 @@ class SpotifyWebApi:
         except ValueError as e:
             logger.error(f"get_metadata: {e}")
             return {}
+        cache_key = f"{uri_type}:{uri_id}"
+        cached = self._metadata_cache.get(cache_key)
+        if cached is not None:
+            return cached
         try:
             if uri_type == 'track':
-                return _shape_track(self._client.track(uri_id))
-            if uri_type == 'album':
-                return _shape_album(self._client.album(uri_id))
-            if uri_type == 'playlist':
-                return _shape_playlist(self._client.playlist(uri_id))
-            logger.warning(f"get_metadata: unsupported type '{uri_type}'")
-            return {}
+                result = _shape_track(self._client.track(uri_id))
+            elif uri_type == 'album':
+                result = _shape_album(self._client.album(uri_id))
+            elif uri_type == 'playlist':
+                result = _shape_playlist(self._client.playlist(uri_id))
+            else:
+                logger.warning(f"get_metadata: unsupported type '{uri_type}'")
+                return {}
         except Exception as e:
             logger.error(f"Spotify get_metadata failed for {uri}: {e}")
             return {}
+        self._metadata_cache[cache_key] = result
+        return result
 
 
 # -- result shaping helpers (module level, pure -> easy to unit test) -------
