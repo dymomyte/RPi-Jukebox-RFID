@@ -2,12 +2,21 @@ import React from 'react';
 
 import {
   Avatar,
+  Chip,
   ListItem,
   ListItemAvatar,
   ListItemButton,
   ListItemText,
 } from '@mui/material';
 import AlbumIcon from '@mui/icons-material/Album';
+
+// Colour-code the result type so tracks / albums / playlists are
+// distinguishable at a glance. Values map to MUI Chip palette colours.
+const TYPE_COLORS = {
+  track: 'info',
+  album: 'secondary',
+  playlist: 'success',
+};
 
 const SpotifyResultItem = ({
   result,
@@ -44,10 +53,23 @@ const SpotifyResultItem = ({
         </ListItemAvatar>
         <ListItemText
           primary={name}
-          secondary={secondary || type}
+          secondary={secondary}
           primaryTypographyProps={{ noWrap: true }}
           secondaryTypographyProps={{ noWrap: true }}
         />
+        {type && (
+          <Chip
+            label={type}
+            color={TYPE_COLORS[type] || 'default'}
+            size="small"
+            variant="filled"
+            sx={{
+              ml: 1,
+              flexShrink: 0,
+              textTransform: 'capitalize',
+            }}
+          />
+        )}
       </ListItemButton>
     </ListItem>
   );
