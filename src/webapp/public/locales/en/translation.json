@@ -30,7 +30,8 @@
           "prev_song": "Previous song",
           "shuffle": "Shuffle",
           "repeat": "Repeat",
-          "toggle": "Toggle Play/Pause"
+          "toggle": "Toggle Play/Pause",
+          "play_spotify": "Play a Spotify track, album or playlist"
         }
       },
       "controls-selector": {
@@ -44,7 +45,8 @@
           "audio": "Audio & Volume",
           "host": "System",
           "timers": "Timers",
-          "synchronisation": "Synchronisation"
+          "synchronisation": "Synchronisation",
+          "spotify": "Spotify"
         }
       },
       "actions": {
@@ -93,6 +95,13 @@
             "label-enable": "Enable",
             "label-disable": "Disable"
           }
+        },
+        "spotify": {
+          "search-label": "Search Spotify",
+          "search-placeholder": "Search for a track, album or playlist",
+          "search-error": "An error occurred while searching Spotify.",
+          "no-results": "No results found.",
+          "selected": "Selected: {{uri}}"
         }
       }
     },
@@ -299,6 +308,33 @@
       },
       "volume": {
         "max-volume": "Maximum Volume"
+      }
+    },
+    "spotify": {
+      "title": "Spotify",
+      "status": {
+        "web-api": "Web API",
+        "go-librespot": "Playback (go-librespot)",
+        "connected": "Connected",
+        "disconnected": "Not connected"
+      },
+      "credentials": {
+        "title": "App credentials",
+        "client-id": "Client ID",
+        "client-secret": "Client Secret",
+        "save": "Save credentials",
+        "save-success": "Credentials saved.",
+        "save-error": "An error occurred while saving the credentials."
+      },
+      "connect": {
+        "title": "Connect account",
+        "button": "Connect",
+        "start-error": "An error occurred while starting the authorization.",
+        "paste-instructions": "Complete the login in the opened tab, then paste the redirect URL (or code) below.",
+        "redirect-label": "Redirect URL or code",
+        "complete": "Complete connection",
+        "complete-success": "Spotify connected successfully.",
+        "complete-error": "An error occurred while completing the authorization."
       }
     },
     "systemcontrols": {

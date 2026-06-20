@@ -115,6 +115,42 @@ const commands = {
     method: 'seek',
   },
 
+  // Spotify
+  play_spotify: {
+    _package: 'spotify',
+    plugin: 'ctrl',
+    method: 'play_spotify',
+    argKeys: ['uri'],
+  },
+  spotifySearch: {
+    _package: 'spotify',
+    plugin: 'search',
+    argKeys: ['query', 'types', 'limit'],
+  },
+  spotifyAuthStatus: {
+    _package: 'spotify',
+    plugin: 'auth_status',
+  },
+  spotifyStartAuth: {
+    _package: 'spotify',
+    plugin: 'start_auth',
+  },
+  spotifyCompleteAuth: {
+    _package: 'spotify',
+    plugin: 'complete_auth',
+    argKeys: ['code_or_url'],
+  },
+  spotifyGetMetadata: {
+    _package: 'spotify',
+    plugin: 'get_metadata',
+    argKeys: ['uri'],
+  },
+  spotifySetCredentials: {
+    _package: 'spotify',
+    plugin: 'set_credentials',
+    argKeys: ['client_id', 'client_secret'],
+  },
+
   // Volume
   setVolume: {
     _package: 'volume',

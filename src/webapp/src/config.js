@@ -14,6 +14,8 @@ const SUBSCRIPTIONS = [
   'host.temperature.cpu',
   'playerstatus',
   'rfid.card_id',
+  'spotify.status',
+  'spotify.auth_status',
   'volume.level',
 ];
 
@@ -74,6 +76,13 @@ const JUKEBOX_ACTIONS_MAP = {
     commands: {
       sync_rfidcards_all: {},
       sync_rfidcards_change_on_rfid_scan: {},
+    }
+  },
+
+  // Spotify
+  spotify: {
+    commands: {
+      play_spotify: {},
     }
   },
 }

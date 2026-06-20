@@ -1,0 +1,5 @@
+# Spotify Web API credentials (from your Spotify Developer app, development mode).
+# Copy to shared/settings/spotify.yaml. The webapp Settings page can also write these.
+# Redirect URI registered in the Spotify app must be http://127.0.0.1:8080/callback (IP, not localhost).
+client_id: ''
+client_secret: ''

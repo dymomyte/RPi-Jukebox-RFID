@@ -1,0 +1,7 @@
+# Optional dependencies for the Spotify component.
+# Install with: pip install -r requirements.txt
+#
+# go-librespot is controlled over HTTP via 'requests' (already a core dependency).
+# spotipy provides the Spotify Web API client (search / browse / metadata) with
+# Authorization Code + PKCE.
+spotipy>=2.24.0

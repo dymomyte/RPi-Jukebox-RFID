@@ -622,6 +622,9 @@ class PlayerMPD:
         :param folder: Folder path relative to music library path
         :param recursive: Add folder recursively
         """
+        # MPD and Spotify share the single audio output and must be mutually exclusive:
+        # starting local playback stops any active Spotify playback. No-ops if Spotify isn't loaded.
+        plugs.call_ignore_errors('spotify', 'ctrl', 'stop')
         # TODO: This changes the current state -> Need to save last state
         with self.mpd_lock:
             logger.info(f"Play folder: '{folder}'")
