@@ -48,7 +48,7 @@ starts the RPC server, and handles graceful shutdown via signal handlers.
 
 ## Repository layout
 
-```
+```text
 src/jukebox/                Jukebox Core (Python daemon)
   run_jukebox.py            Main entry point (run via ../../run_jukebox.sh)
   run_*.py                  Other core apps (rpc tool, audio config, rfid register, sniffer)
@@ -102,20 +102,26 @@ CI (`.github/workflows/pythonpackage_future3.yml`) runs `run_pytest.sh` with cov
 
 ## Coding conventions
 
-**Python**
+### Python
+
 - Follow [PEP 8](https://www.python.org/dev/peps/pep-0008/). Enforced by flake8 (`.flake8`):
   **max line length 127**, **max complexity 12**. A few continuation-line/binary-operator rules are
   ignored — see `.flake8` for the exact list. `__init__.py` may have unused imports (F401 ignored).
 - Write docstrings. Module docstrings double as API docs (see `components/volume/__init__.py` for
   the house style: Features / Publishes / Integration sections). Docs are generated via pydoc-markdown.
 
-**Files & folder names** (this is the #1 difference from Version 2 — follow it strictly):
+### Files & folder names
+
+This is the #1 difference from Version 2 — follow it strictly:
+
 - all **lower case**
 - separate words with **underscores `_`**, never dashes (dashes break Python module imports)
 - descriptive, general → specific (e.g. `dot_matrix_module_MAX7219`); product IDs kept verbatim and last
 - Directories named `scratch*` are gitignored and flake8-excluded — use them for local throwaway work.
 
-**Web App**: React 17 + MUI 5 + Emotion, i18next for translations, ZMQ over WebSocket via `jszmq`.
+### Web App
+
+React 17 + MUI 5 + Emotion, i18next for translations, ZMQ over WebSocket via `jszmq`.
 ESLint config is `react-app` (CRA defaults).
 
 ## Git & contribution workflow
@@ -139,8 +145,8 @@ ESLint config is `react-app` (CRA defaults).
   `requirements.txt`.
 - **Changing config?** `resources/default-settings/jukebox.default.yaml` is the canonical shape;
   config is read via `jukebox/cfghandler.py` (ruamel.yaml). The live config is `shared/settings/jukebox.yaml`.
-- **Adding a user action to the Web App?** Trace it through: a registered core plugin function (RPC)
-  + a subscription/command in `src/webapp/src/` (`config.js`, `commands/`, `sockets/`).
+- **Adding a user action to the Web App?** Trace it through: a registered core plugin function
+  (RPC) plus a subscription/command in `src/webapp/src/` (`config.js`, `commands/`, `sockets/`).
 - **Tests are sparse.** Add pytest tests under `test/` when you add testable logic; mirror the
   existing structure (`test/cfghandler/`, `test/evdev/`, `test/gpioz/`). `conftest.py` puts
   `src/jukebox` on `sys.path`; `pytest.ini` sets `testpaths = test`.
