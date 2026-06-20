@@ -55,11 +55,17 @@ _DEFAULT_CREDENTIALS_FILE = '../../shared/settings/spotify.yaml'
 
 
 def _resolve_path(path: str) -> str:
-    """Resolve a possibly-relative path against this component's directory."""
+    """Resolve a possibly-relative path against the ``src/jukebox`` directory.
+
+    Relative config paths like ``../../shared/settings/spotify.yaml`` follow the
+    project convention of being relative to ``src/jukebox`` (see run_jukebox.py),
+    which is two levels up from this component's directory.
+    """
     expanded = os.path.expanduser(path)
     if os.path.isabs(expanded):
         return expanded
-    base = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
+    component_dir = os.path.dirname(os.path.realpath(__file__))
+    base = os.path.abspath(os.path.join(component_dir, '..', '..'))
     return os.path.abspath(os.path.join(base, expanded))
 
 
