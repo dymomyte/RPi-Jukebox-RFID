@@ -36,8 +36,17 @@ const normalizeSpotifyStatus = (spotifyStatus) => {
   };
 };
 
+// Spotify is the "active" backend whenever it has a loaded track that is
+// playing or paused (only one backend plays at a time due to arbitration).
+// While paused we still surface Spotify so the controls can resume it.
+const isSpotifyActive = (spotifyStatus) => (
+  !!spotifyStatus
+  && (spotifyStatus.state === 'play' || spotifyStatus.state === 'pause')
+  && !!spotifyStatus.track
+);
+
 const getEffectivePlayerStatus = (playerstatus = {}, spotifyStatus) => {
-  if (spotifyStatus && spotifyStatus.state === 'play') {
+  if (isSpotifyActive(spotifyStatus)) {
     return normalizeSpotifyStatus(spotifyStatus);
   }
 
@@ -46,5 +55,6 @@ const getEffectivePlayerStatus = (playerstatus = {}, spotifyStatus) => {
 
 export {
   getEffectivePlayerStatus,
+  isSpotifyActive,
   normalizeSpotifyStatus,
 };
