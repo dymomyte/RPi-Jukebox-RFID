@@ -12,7 +12,9 @@ import RepeatRoundedIcon from '@mui/icons-material/RepeatRounded';
 import RepeatOneRoundedIcon from '@mui/icons-material/RepeatOneRounded';
 
 import PlayerContext from '../../context/player/context';
+import PubSubContext from '../../context/pubsub/context';
 import request from '../../utils/request';
+import { getEffectivePlayerStatus } from './utils';
 
 // TODO: Should be broken up in sub-modules
 const Controls = () => {
@@ -21,6 +23,7 @@ const Controls = () => {
     state,
     setState,
   } = useContext(PlayerContext);
+  const { state: { 'spotify.status': spotifyStatus } } = useContext(PubSubContext);
 
   const {
     isPlaying,
@@ -30,6 +33,11 @@ const Controls = () => {
     isSingle,
     songIsScheduled
   } = state;
+
+  // When Spotify is the active backend, the merged status drives play/pause
+  // state and transport commands route to spotify.ctrl.* instead of the MPD player.
+  const effectiveStatus = getEffectivePlayerStatus(playerstatus, spotifyStatus);
+  const isSpotify = !!effectiveStatus.isSpotify;
 
   const toggleShuffle = () => {
     request('shuffle', { option: 'toggle' });
@@ -42,13 +50,15 @@ const Controls = () => {
   useEffect(() => {
     setState({
       ...state,
-      isPlaying: playerstatus?.state === 'play' ? true : false,
-      songIsScheduled: playerstatus?.songid ? true : false,
+      isPlaying: effectiveStatus?.state === 'play' ? true : false,
+      songIsScheduled: effectiveStatus?.songid ? true : false,
+      // Shuffle/repeat/single apply to the MPD backend only.
       isShuffle: playerstatus?.random === '1' ? true : false,
       isRepeat: playerstatus?.repeat === '1' ? true : false,
       isSingle: playerstatus?.single === '1' ? true : false,
     });
-  }, [playerstatus]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playerstatus, spotifyStatus]);
 
   const iconStyles = { padding: '7px' };
 
@@ -77,6 +87,7 @@ const Controls = () => {
       <IconButton
         aria-label={labelShuffle()}
         color={isShuffle ? 'primary' : undefined}
+        disabled={isSpotify}
         onClick={toggleShuffle}
         size="large"
         sx={iconStyles}
@@ -89,7 +100,7 @@ const Controls = () => {
       <IconButton
         aria-label={t('player.controls.prev_song')}
         disabled={!songIsScheduled}
-        onClick={e => request('prev_song')}
+        onClick={e => request(isSpotify ? 'spotifyPrev' : 'prev_song')}
         size="large"
         sx={iconStyles}
         title={t('player.controls.prev_song')}
@@ -101,7 +112,7 @@ const Controls = () => {
       {!isPlaying &&
         <IconButton
           aria-label={t('player.controls.play')}
-          onClick={e => request('play')}
+          onClick={e => request(isSpotify ? 'spotifyPlay' : 'play')}
           disabled={!songIsScheduled}
           size="large"
           sx={iconStyles}
@@ -114,7 +125,7 @@ const Controls = () => {
       {isPlaying &&
         <IconButton
           aria-label={t('player.controls.pause')}
-          onClick={e => request('pause')}
+          onClick={e => request(isSpotify ? 'spotifyPause' : 'pause')}
           size="large"
           sx={iconStyles}
           title={t('player.controls.pause')}
@@ -127,7 +138,7 @@ const Controls = () => {
       <IconButton
         aria-label={t('player.controls.next_song')}
         disabled={!songIsScheduled}
-        onClick={e => request('next_song')}
+        onClick={e => request(isSpotify ? 'spotifyNext' : 'next_song')}
         size="large"
         sx={iconStyles}
         title={t('player.controls.next_song')}
@@ -139,6 +150,7 @@ const Controls = () => {
       <IconButton
         aria-label={labelRepeat()}
         color={isRepeat ? 'primary' : undefined}
+        disabled={isSpotify}
         onClick={toggleRepeat}
         size="large"
         sx={iconStyles}

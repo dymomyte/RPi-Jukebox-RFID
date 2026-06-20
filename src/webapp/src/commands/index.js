@@ -145,6 +145,32 @@ const commands = {
     plugin: 'get_metadata',
     argKeys: ['uri'],
   },
+  // Spotify transport (home Player routes here when Spotify is the active backend)
+  spotifyPlay: {
+    _package: 'spotify',
+    plugin: 'ctrl',
+    method: 'play',
+  },
+  spotifyPause: {
+    _package: 'spotify',
+    plugin: 'ctrl',
+    method: 'pause',
+  },
+  spotifyNext: {
+    _package: 'spotify',
+    plugin: 'ctrl',
+    method: 'next',
+  },
+  spotifyPrev: {
+    _package: 'spotify',
+    plugin: 'ctrl',
+    method: 'prev',
+  },
+  spotifySeek: {
+    _package: 'spotify',
+    plugin: 'ctrl',
+    method: 'seek',
+  },
   spotifySetCredentials: {
     _package: 'spotify',
     plugin: 'set_credentials',
