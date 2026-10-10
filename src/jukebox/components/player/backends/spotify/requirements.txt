@@ -1,0 +1,8 @@
+# Optional dependencies for the Spotify player backend.
+# Install with: pip install -r requirements.txt
+#
+# go-librespot is controlled over HTTP via 'requests' (already a core dependency).
+# spotipy provides the Spotify Web API client (library browsing / search / cover art)
+# with Authorization Code + PKCE. 2.26.0 is the first release that uses the
+# /playlists/{id}/items endpoint required since Spotify's February 2026 API changes.
+spotipy>=2.26.0

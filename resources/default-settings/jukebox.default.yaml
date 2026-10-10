@@ -93,6 +93,23 @@ playermpd:
   stopped_prev_action: prev
   # Must be one of: 'none', 'next', 'rewind':
   stopped_next_action: next
+spotify:
+  # Register the Spotify player backend (go-librespot). Requires a Spotify Premium account.
+  # Set up go-librespot and enable this with: installation/components/setup_spotify.sh
+  enable: false
+  go_librespot:
+    # Host and port of the local go-librespot REST API
+    host: localhost
+    port: 3678
+  # Interval in seconds for polling go-librespot for the player status
+  status_poll_interval: 0.25
+  web_api:
+    # Local redirect port for the Web API authorization (library browsing, search, cover art).
+    # The redirect URI registered in the Spotify app must be http://127.0.0.1:<port>/callback (IP, not localhost)
+    redirect_port: 8080
+    token_cache_file: ../../shared/settings/spotify-token.json
+  # Spotify app client id for the Web API. Kept out of the main config.
+  credentials_file: ../../shared/settings/spotify.yaml
 rpc:
   tcp_port: 5555
 api:
