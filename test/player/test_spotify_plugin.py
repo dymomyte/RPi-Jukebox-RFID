@@ -84,6 +84,7 @@ def test_spotify_cards_switch_backends_through_coordinator(registered):
     coordinator.register_backend('mpd', mpd)
     backend = spotify_plugin.register_spotify_backend(coordinator, 'components.player.plugin')
     backend.client = Mock()
+    backend.client.status.return_value = {'stopped': False, 'paused': False}
 
     coordinator.play_album('Artist', 'Album', 'spotify:album:AID', 'spotify')
 
@@ -108,7 +109,8 @@ def test_spotify_connect_playback_selects_backend(registered):
     coordinator.register_backend('mpd', mpd)
     backend = spotify_plugin.register_spotify_backend(coordinator, 'components.player.plugin')
     backend.client = Mock()
-    backend.client.status.return_value = {'play_origin_device_id': 'phone'}
+    # Spotify Connect playback, which go-librespot reports without play_origin_device_id
+    backend.client.status.return_value = {'stopped': False, 'paused': False, 'play_origin_device_id': None}
 
     backend._status_poll()
 

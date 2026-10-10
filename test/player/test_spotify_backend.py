@@ -114,8 +114,10 @@ def test_unreachable_go_librespot_reports_stopped(publisher):
     publisher.send.assert_called_once_with('playerstatus', map_status(None))
 
 
-def test_spotify_connect_playback_selects_backend(publisher):
-    backend = make_backend({**PLAYING, 'play_origin_device_id': 'phone'})
+# go-librespot 0.7.4 leaves play_origin_device_id empty for Spotify Connect playback
+@pytest.mark.parametrize('raw', [PLAYING, {**PLAYING, 'play_origin_device_id': 'phone'}])
+def test_spotify_connect_playback_selects_backend(publisher, raw):
+    backend = make_backend(raw)
     backend.on_external_playback = Mock()
 
     backend._status_poll()
@@ -124,14 +126,24 @@ def test_spotify_connect_playback_selects_backend(publisher):
     backend.on_external_playback.assert_called_once_with()
 
 
+def test_spotify_connect_resume_selects_backend(publisher):
+    backend = make_backend({**PLAYING, 'paused': True})
+    backend.on_external_playback = Mock()
+    backend._status_poll()
+
+    backend.client.status.return_value = PLAYING
+    backend._status_poll()
+
+    backend.on_external_playback.assert_called_once_with()
+
+
 @pytest.mark.parametrize(('raw', 'active'), [
-    # Playback started through the local API (cards, Web App)
-    (PLAYING, False),
     # Already the active backend
-    ({**PLAYING, 'play_origin_device_id': 'phone'}, True),
-    ({**PLAYING, 'paused': True, 'play_origin_device_id': 'phone'}, False),
+    (PLAYING, True),
+    ({**PLAYING, 'paused': True}, False),
+    (None, False),
 ])
-def test_local_or_active_playback_does_not_select_backend(publisher, raw, active):
+def test_active_or_silent_playback_does_not_select_backend(publisher, raw, active):
     backend = make_backend(raw)
     backend.on_external_playback = Mock()
     backend._active = active
@@ -144,7 +156,7 @@ def test_local_or_active_playback_does_not_select_backend(publisher, raw, active
 def test_continued_playback_does_not_reselect_backend(publisher):
     # Polls that complete after the coordinator switched away from Spotify must
     # not switch back while Spotify is still reported as playing
-    backend = make_backend({**PLAYING, 'play_origin_device_id': 'phone'})
+    backend = make_backend(PLAYING)
     backend.on_external_playback = Mock()
     backend._active = True
     backend._status_poll()
@@ -164,6 +176,23 @@ def test_seek_converts_seconds_to_milliseconds():
 def test_stop_never_raises():
     backend = make_backend()
     backend.client.stop.side_effect = GoLibrespotError('down')
+    backend.stop()
+
+
+def test_stop_skips_paused_player():
+    # go-librespot 0.7.4 panics on /player/stop while paused
+    backend = make_backend({**PLAYING, 'paused': True})
+    backend.stop()
+    backend.client.stop.assert_not_called()
+
+    backend.client.status.return_value = PLAYING
+    backend.stop()
+    backend.client.stop.assert_called_once_with()
+
+
+def test_stop_never_raises_when_status_fails():
+    backend = make_backend()
+    backend.client.status.side_effect = GoLibrespotError('down')
     backend.stop()
 
 

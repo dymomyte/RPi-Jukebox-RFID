@@ -146,10 +146,10 @@ class SpotifyBackend:
 
         status = map_status(raw)
         playing = status['state'] == 'play'
-        # go-librespot reports the controlling device for playback that was not
-        # started through its local API, i.e. from a Spotify app via Spotify Connect
-        started_externally = (playing and not self._was_playing and not self._active
-                              and bool(raw.get('play_origin_device_id')))
+        # The coordinator activates the backend before it loads content, so playback
+        # that starts while the backend is inactive was started from a Spotify app
+        # through Spotify Connect
+        started_externally = playing and not self._was_playing and not self._active
         self._was_playing = playing
         with self._status_lock:
             self._status = status
@@ -181,6 +181,10 @@ class SpotifyBackend:
         # Never raise: the coordinator stops the active backend before switching,
         # which must succeed even if go-librespot is not running
         try:
+            raw = self.client.status()
+            # go-librespot 0.7.4 crashes when stopped while paused, and a paused player is silent
+            if raw and raw.get('paused'):
+                return
             self.client.stop()
         except GoLibrespotError as e:
             logger.warning(f"Could not stop Spotify playback: {e}")

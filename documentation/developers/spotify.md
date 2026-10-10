@@ -54,14 +54,16 @@ implemented; the coordinator raises `NotImplementedError` for them while Spotify
 Folder playback always routes to the default backend.
 
 `stop()` never raises, because the coordinator stops the active backend before switching to
-another one, which must work even if go-librespot is down.
+another one, which must work even if go-librespot is down. It leaves a paused player paused:
+go-librespot 0.7.4 crashes when `/player/stop` is called while paused.
 
 ## Spotify Connect
 
 go-librespot is also a Spotify Connect device, so playback can be started from any Spotify app.
-The status poll detects playback that starts while the backend is inactive and was not started
-through the local API (`play_origin_device_id` is set). It then selects the backend through the
-coordinator, which stops MPD. Only the transition into playing triggers this, so a poll that
+The status poll detects playback that starts while the backend is inactive. The coordinator
+activates a backend before it loads content, so such playback can only come from a Spotify app.
+(go-librespot 0.7.4 does not report the controlling device in `play_origin_device_id`.) The poll
+then selects the backend through the coordinator, which stops MPD. Only the transition into playing triggers this, so a poll that
 completes after the coordinator switched away from a playing Spotify backend does not switch back.
 
 ## Spotify Account Plugin
