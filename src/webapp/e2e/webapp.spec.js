@@ -84,6 +84,7 @@ async function mockBackend(
     failRpc = false,
     rpcGate,
     showCovers = false,
+    spotify = false,
     streamingLibrary = false,
     timerEvents = {},
   } = {},
@@ -164,6 +165,28 @@ async function mockBackend(
             },
           ],
         }] : []),
+      ];
+    }
+    if (key === 'list_backends') {
+      result = ['mpd', ...(spotify ? ['spotify'] : [])];
+    }
+    if (key === 'auth_status' || key === 'set_client_id') {
+      result = {
+        client_id_configured: key === 'set_client_id',
+        go_librespot_connected: true,
+        web_api_connected: false,
+      };
+    }
+    if (key === 'search' && payload.plugin === 'spotify') {
+      result = [
+        {
+          album: 'Discovery',
+          artists: ['Daft Punk'],
+          cover_url: null,
+          name: 'Discovery',
+          type: 'album',
+          uri: 'spotify:album:2noRn2Aes5aoNVsU6iWThc',
+        },
       ];
     }
     if (key === 'list_library_items') {
@@ -459,6 +482,61 @@ test('library playback preserves provider and content URI', async ({ page }) => 
     content_uri: 'service:playlist:bedtime',
     provider: 'streaming',
   });
+  expect(consoleErrors).toEqual([]);
+});
+
+test('Spotify search assigns provider-aware album cards', async ({ page }) => {
+  const consoleErrors = collectConsoleErrors(page);
+  const { rpcCalls } = await mockBackend(page, { spotify: true });
+  await page.goto('/#/cards/0001234567/edit');
+
+  await page.getByLabel('Actions').selectOption('play_music');
+  await page.getByRole('textbox', { name: 'Search Spotify' }).fill('discovery');
+  await page.keyboard.press('Enter');
+  await expect.poll(() => (
+    rpcCalls.find(call => call.method === 'search')?.kwargs
+  )).toEqual({ query: 'discovery', types: 'track,album,playlist' });
+
+  await page.getByRole('button', { name: 'Discovery' }).click();
+  await expect(page.getByText('Selected album')).toBeVisible();
+  await page.getByRole('button', { name: 'Save' }).click();
+
+  await expect.poll(() => (
+    rpcCalls.find(call => call.plugin === 'register_card')?.kwargs
+  )).toEqual({
+    args: ['Daft Punk', 'Discovery', 'spotify:album:2noRn2Aes5aoNVsU6iWThc', 'spotify'],
+    card_id: '0001234567',
+    cmd_alias: 'play_album',
+    overwrite: true,
+  });
+  expect(consoleErrors).toEqual([]);
+});
+
+test('Spotify search is hidden without the Spotify backend', async ({ page }) => {
+  await mockBackend(page);
+  await page.goto('/#/cards/0001234567/edit');
+
+  await page.getByLabel('Actions').selectOption('play_music');
+
+  await expect(page.getByRole('button', { name: 'Select music' })).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Search Spotify' })).toHaveCount(0);
+});
+
+test('Spotify settings store the client id', async ({ page }) => {
+  const consoleErrors = collectConsoleErrors(page);
+  const { rpcCalls } = await mockBackend(page, { spotify: true });
+  await page.goto('/#/settings');
+
+  await expect(page.getByText('go-librespot: connected')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Connect Spotify' })).toBeDisabled();
+  await page.getByRole('textbox', { name: 'Client ID' }).fill(' my-client-id ');
+  await page.getByRole('button', { name: 'Save client ID' }).click();
+
+  await expect(page.getByText('Client ID saved.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Connect Spotify' })).toBeEnabled();
+  expect(
+    rpcCalls.find(call => call.method === 'set_client_id')?.kwargs,
+  ).toEqual({ client_id: 'my-client-id' });
   expect(consoleErrors).toEqual([]);
 });
 

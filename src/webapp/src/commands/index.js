@@ -63,6 +63,42 @@ const commands = {
     method: 'playerstatus'
   },
 
+  playerBackends: {
+    _package: 'player',
+    plugin: 'ctrl',
+    method: 'list_backends',
+  },
+
+  // Spotify account (the player backend itself is controlled through player.ctrl)
+  spotifyAuthStatus: {
+    _package: 'player',
+    plugin: 'spotify',
+    method: 'auth_status',
+  },
+  spotifySetClientId: {
+    _package: 'player',
+    plugin: 'spotify',
+    method: 'set_client_id',
+    argKeys: ['client_id'],
+  },
+  spotifyStartAuth: {
+    _package: 'player',
+    plugin: 'spotify',
+    method: 'start_auth',
+  },
+  spotifyCompleteAuth: {
+    _package: 'player',
+    plugin: 'spotify',
+    method: 'complete_auth',
+    argKeys: ['code_or_url'],
+  },
+  spotifySearch: {
+    _package: 'player',
+    plugin: 'spotify',
+    method: 'search',
+    argKeys: ['query', 'types', 'limit'],
+  },
+
   // Player Actions
   play: {
     _package: 'player',

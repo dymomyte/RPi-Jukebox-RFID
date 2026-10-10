@@ -62,7 +62,17 @@
           },
           "button-label": "Select music",
           "no-music-selected": "No music selected",
-          "loading-song-error": "An error occurred while loading song."
+          "loading-song-error": "An error occurred while loading song.",
+          "spotify": {
+            "search-label": "Search Spotify",
+            "search-error": "An error occurred while searching Spotify. Is the Spotify Web API connected in the settings?",
+            "no-results": "No results found.",
+            "types": {
+              "track": "Track",
+              "album": "Album",
+              "playlist": "Playlist"
+            }
+          }
         },
         "audio": {
           "repeat": {
@@ -141,7 +151,8 @@
       "tracks": "Tracks"
     },
     "sources": {
-      "mpd": "Local"
+      "mpd": "Local",
+      "spotify": "Spotify"
     },
     "overview": {
       "group": "{{source}} {{view}}",
@@ -373,6 +384,35 @@
     },
     "systemcontrols": {
       "title": "System Controls"
+    },
+    "spotify": {
+      "title": "Spotify",
+      "subheader": "Playback runs on go-librespot. Connect the Spotify Web API to browse your playlists and albums and to search.",
+      "status": {
+        "go-librespot": "go-librespot",
+        "web-api": "Spotify Web API",
+        "connected": "connected",
+        "disconnected": "not connected"
+      },
+      "client-id": {
+        "title": "Spotify app",
+        "label": "Client ID",
+        "configured": "A client ID is configured. Enter a new one to replace it.",
+        "missing": "Enter the client ID of your Spotify developer app.",
+        "save": "Save client ID",
+        "save-success": "Client ID saved.",
+        "save-error": "The client ID could not be saved."
+      },
+      "connect": {
+        "title": "Web API authorization",
+        "button": "Connect Spotify",
+        "paste-instructions": "After approving access, your browser opens a page starting with http://127.0.0.1 that may not load. Copy its full address and paste it here.",
+        "redirect-label": "Redirect URL",
+        "complete": "Complete connection",
+        "start-error": "Could not start the authorization. Is a client ID configured?",
+        "complete-error": "The authorization failed. Please start again.",
+        "complete-success": "Spotify Web API connected."
+      }
     }
   }
 }

@@ -65,6 +65,7 @@ const ControlsSelector = ({
           <SelectPlayMusic
             actionData={actionData}
             cardId={cardId}
+            handleActionDataChange={handleActionDataChange}
           />
         }
 

@@ -5,14 +5,17 @@ import SettingsAudio from './audio/index';
 import SettingsAutoHotspot from './autohotspot';
 import SettingsGeneral from './general';
 import SettingsSecondSwipe from './secondswipe';
+import SettingsSpotify from './spotify';
 import SettingsStatus from './status/index';
 import SettingsTimers from './timers/index';
 import SystemControls from './systemcontrols';
+import { usePlayerBackends } from '../../utils/player-backends';
 
 import { useTheme } from '@mui/material/styles';
 
 const Settings = () => {
   const theme = useTheme();
+  const backends = usePlayerBackends();
   const spacer = { marginBottom: theme.spacing(1) }
 
   return (
@@ -37,6 +40,11 @@ const Settings = () => {
       <Grid>
         <SettingsAudio />
       </Grid>
+      {backends.includes('spotify') &&
+        <Grid>
+          <SettingsSpotify />
+        </Grid>
+      }
       <Grid>
         <SystemControls />
       </Grid>

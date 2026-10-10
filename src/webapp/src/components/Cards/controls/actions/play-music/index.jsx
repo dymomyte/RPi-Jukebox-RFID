@@ -14,17 +14,21 @@ import {
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 
 import { getActionAndCommand, getArgsValues } from '../../../utils';
+import { usePlayerBackends } from '../../../../../utils/player-backends';
 
 import SelectedAlbum from './selected-album';
 import SelectedFolder from './selected-folder';
 import SelectedSingle from './selected-single';
+import SpotifySearch from './spotify-search';
 
 const SelectPlayMusic = ({
   actionData,
   cardId,
+  handleActionDataChange,
 }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const backends = usePlayerBackends();
 
   const { command } = getActionAndCommand(actionData);
   const values = getArgsValues(actionData);
@@ -65,6 +69,12 @@ const SelectPlayMusic = ({
           {t('cards.controls.actions.play-music.button-label')}
         </Button>
       </Grid>
+
+      {backends.includes('spotify') &&
+        <SpotifySearch
+          onSelect={(command, args) => handleActionDataChange('play_music', command, args)}
+        />
+      }
     </Grid>
   );
 };
