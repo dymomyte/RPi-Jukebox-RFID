@@ -18,6 +18,7 @@ Note that playlist contents are only returned for playlists the user owns or
 collaborates on; other playlists can still be played and assigned to cards.
 """
 import logging
+import time
 
 from . import uri_utils
 
@@ -34,6 +35,10 @@ _PAGE_SIZE = 50
 
 #: Upper bound of entries fetched for a single listing, to keep the Web App responsive
 _MAX_ENTRIES = 500
+
+#: Seconds library and track listings are cached. Listings take several requests and
+#: the player coordinator serializes catalog calls with playback commands.
+LISTING_TTL = 300
 
 PROVIDER = 'spotify'
 
@@ -60,6 +65,7 @@ class SpotifyWebApi:
         # Per-URI metadata cache (Spotify object metadata is immutable), so the
         # card list / repeated cover lookups don't re-hit the Web API every render.
         self._metadata_cache = {}
+        self._listing_cache = {}
         self.set_client_id(client_id)
 
     def set_client_id(self, client_id: str):
@@ -67,6 +73,7 @@ class SpotifyWebApi:
         self.client_id = client_id
         self._auth_manager = None
         self._client = None
+        self._listing_cache = {}
         if not client_id:
             logger.warning("Spotify Web API disabled: client_id not configured")
             return
@@ -125,6 +132,7 @@ class SpotifyWebApi:
         except Exception as e:
             logger.error(f"Spotify auth completion failed: {e}")
             return {'success': False}
+        self._listing_cache = {}
         return {'success': True}
 
     def _ready(self, purpose: str) -> bool:
@@ -134,6 +142,16 @@ class SpotifyWebApi:
         return True
 
     # -- library ------------------------------------------------------------
+    def _cached(self, key: str, fetch):
+        """Return the cached listing for ``key``, calling ``fetch`` when missing or expired."""
+        now = time.monotonic()
+        cached = self._listing_cache.get(key)
+        if cached is not None and cached[0] > now:
+            return cached[1]
+        value = fetch()
+        self._listing_cache[key] = (now + LISTING_TTL, value)
+        return value
+
     def _collect(self, first_page: dict) -> list:
         """Follow spotipy paging objects until exhausted or ``_MAX_ENTRIES`` is reached."""
         items = []
@@ -149,15 +167,20 @@ class SpotifyWebApi:
         """Return the user's playlists as library items."""
         if not self._ready('playlists'):
             return []
-        entries = self._collect(self._client.current_user_playlists(limit=_PAGE_SIZE))
-        return [shape_playlist_item(entry) for entry in entries]
+        return self._cached('playlists', lambda: [
+            shape_playlist_item(entry)
+            for entry in self._collect(self._client.current_user_playlists(limit=_PAGE_SIZE))
+        ])
 
     def list_saved_albums(self) -> list:
         """Return the user's saved albums as library items."""
         if not self._ready('saved albums'):
             return []
-        entries = self._collect(self._client.current_user_saved_albums(limit=_PAGE_SIZE))
-        return [shape_album_item(entry['album']) for entry in entries if entry.get('album')]
+        return self._cached('albums', lambda: [
+            shape_album_item(entry['album'])
+            for entry in self._collect(self._client.current_user_saved_albums(limit=_PAGE_SIZE))
+            if entry.get('album')
+        ])
 
     def list_tracks(self, content_uri: str) -> list:
         """Return the tracks of an album or playlist as song entries.
@@ -167,16 +190,20 @@ class SpotifyWebApi:
         if not self._ready('track listing'):
             return []
         content_type, content_id = uri_utils.parse_uri(content_uri)
+        if content_type not in ('album', 'playlist'):
+            raise ValueError(f"Cannot list tracks of Spotify {content_type} '{content_uri}'")
+        return self._cached(f'tracks:{content_type}:{content_id}',
+                            lambda: self._fetch_tracks(content_type, content_id))
+
+    def _fetch_tracks(self, content_type: str, content_id: str) -> list:
         if content_type == 'album':
             album = self._client.album(content_id)
             tracks = self._collect(album.get('tracks'))
             return [shape_song(track, album) for track in tracks]
-        if content_type == 'playlist':
-            entries = self._collect(self._client.playlist_items(content_id, additional_types=('track',)))
-            # Since February 2026 playlist entries carry the track as 'item' (previously 'track')
-            tracks = (entry.get('item') or entry.get('track') for entry in entries)
-            return [shape_song(track) for track in tracks if track and track.get('type', 'track') == 'track']
-        raise ValueError(f"Cannot list tracks of Spotify {content_type} '{content_uri}'")
+        entries = self._collect(self._client.playlist_items(content_id, additional_types=('track',)))
+        # Since February 2026 playlist entries carry the track as 'item' (previously 'track')
+        tracks = (entry.get('item') or entry.get('track') for entry in entries)
+        return [shape_song(track) for track in tracks if track and track.get('type', 'track') == 'track']
 
     def get_song(self, uri: str) -> dict:
         """Return a single track as song entry, or ``{}`` if unavailable."""
