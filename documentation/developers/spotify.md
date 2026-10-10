@@ -45,7 +45,7 @@ Spotify setup cannot keep MPD from loading.
 | `playerstatus()` | MPD-shaped dict: `state`, `songid`, `file`, `title`, `artist`, `album`, `elapsed`/`duration` in seconds, `random`/`repeat`/`single`, `cover_url`, `provider` |
 | `set_active(active)` | Status is polled continuously but published only while active |
 | `library_source()` | Source `spotify` with `playlists` and `albums` views (`kind: items`) |
-| `list_library_items(content_types)` | The user's playlists and saved albums |
+| `list_library_items(content_types)` | The user's playlists and saved albums; playlists carry `tracks_available` |
 | `list_songs_by_artist_and_album(..., content_uri)`, `get_song_by_url` | Track listings and lookup through the Web API |
 | `get_album_coverart`, `get_single_coverart` | Remote cover URLs from the Web API |
 
@@ -72,11 +72,12 @@ Web API authorization and catalog search are not part of the player contract. Th
 as the plugin `player.spotify`:
 
 * `auth_status()`, `set_client_id(client_id)`, `start_auth()`, `complete_auth(code_or_url)`
-* `search(query, types, limit)`: results are turned into `play_album`/`play_single` card
-  actions with `provider='spotify'` by the Web App card editor
+* `search(query, types, limit)`: catalog search. The Web App card editor turns results into
+  `play_album`/`play_single` card actions with `provider='spotify'`. The library search of the
+  Spotify source shows them as songs, albums and playlists next to the matching saved items.
 
-The Web App shows the Spotify settings and search only if `player.ctrl.list_backends()` contains
-`spotify`.
+The Web App shows the Spotify settings and the card editor search only if
+`player.ctrl.list_backends()` contains `spotify`.
 
 ## Pub/Sub Topics
 
@@ -97,7 +98,9 @@ Development Mode apps are subject to Spotify's February 2026 restrictions:
 
 * Playlist contents come from `/playlists/{id}/items` (spotipy >= 2.26) and are only returned for
   playlists the user owns or collaborates on. Entries carry the track as `item` (formerly `track`);
-  both are accepted.
+  both are accepted. For other playlists Spotify answers `403`, which the backend turns into an
+  empty track listing. Playlist library items and search results carry `tracks_available`, so the
+  Web App can explain the missing tracks and still offer to play the playlist or assign it.
 * Search returns at most 10 results per type.
 * Batch lookups are gone; the backend only uses single-item endpoints.
 

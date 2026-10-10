@@ -148,7 +148,8 @@
       "albums": "Albums",
       "folders": "Folders",
       "playlists": "Playlists",
-      "tracks": "Tracks"
+      "tracks": "Tracks",
+      "search-spotify-label": "Search your library and Spotify"
     },
     "sources": {
       "mpd": "Local",
@@ -232,6 +233,16 @@
       "empty-library": "Your library is empty!",
       "no-songs-in-album": "Strange, no songs in this album.",
       "assign-to-card": "Assign album to card"
+    },
+    "spotify": {
+      "library": "In your library",
+      "songs": "Songs on Spotify",
+      "albums": "Albums on Spotify",
+      "playlists": "Playlists on Spotify",
+      "search-error": "Spotify search failed. Check the Spotify Web API connection in the settings.",
+      "no-results": "Nothing found on Spotify.",
+      "tracks-not-shared-short": "Tracks not shared by Spotify",
+      "tracks-not-shared": "Spotify doesn't share the tracks of playlists you don't own. You can still play this playlist or assign it to a card."
     }
   },
   "navigation": {

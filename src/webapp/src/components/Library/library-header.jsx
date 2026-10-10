@@ -107,7 +107,9 @@ const LibraryHeader = ({ handleMusicFilter, musicFilter, sources }) => {
           focused
           fullWidth
           id="library-search"
-          label={t('library.header.search-label')}
+          label={activeSource === 'spotify'
+            ? t('library.header.search-spotify-label')
+            : t('library.header.search-label')}
           onChange={handleMusicFilter}
           size="small"
           sx={{ marginTop: 1 }}

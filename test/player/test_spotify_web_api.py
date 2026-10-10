@@ -24,6 +24,8 @@ def connected_api(client):
     api._auth_manager = Mock(get_cached_token=Mock(return_value={'access_token': 'x'}))
     api._metadata_cache = {}
     api._listing_cache = {}
+    api._user_id = None
+    client.current_user.return_value = {'id': 'me'}
     return api
 
 
@@ -46,7 +48,7 @@ def test_flatten_search_shapes_all_types():
         {'uri': 'spotify:album:A', 'type': 'album', 'name': 'Album2', 'artists': ['Artist2'],
          'album': 'Album2', 'cover_url': 'cover2', 'duration_ms': None},
         {'uri': 'spotify:playlist:P', 'type': 'playlist', 'name': 'Playlist3', 'artists': ['Owner'],
-         'album': None, 'cover_url': None, 'duration_ms': None},
+         'album': None, 'cover_url': None, 'duration_ms': None, 'tracks_available': True},
     ]
 
 
@@ -58,7 +60,7 @@ def test_library_items_use_player_contract_shape():
 
     assert web_api.shape_playlist_item(playlist) == {
         'provider': 'spotify', 'content_type': 'playlist', 'content_uri': 'spotify:playlist:P',
-        'albumartist': 'Me', 'album': 'Mix', 'cover_url': 'img',
+        'albumartist': 'Me', 'album': 'Mix', 'cover_url': 'img', 'tracks_available': True,
     }
     assert web_api.shape_album_item(album) == {
         'provider': 'spotify', 'content_type': 'album', 'content_uri': 'spotify:album:A',
@@ -180,3 +182,64 @@ def test_listing_cache_is_cleared_after_authorization():
     api.list_playlists()
 
     assert client.current_user_playlists.call_count == 2
+
+
+@pytest.mark.parametrize(('playlist', 'expected'), [
+    ({'owner': {'id': 'me'}}, True),
+    ({'owner': {'id': 'other'}, 'collaborative': True}, True),
+    ({'owner': {'id': 'other'}}, False),
+])
+def test_playlist_tracks_available_for_owned_or_collaborative(playlist, expected):
+    assert web_api.playlist_tracks_available(playlist, 'me') is expected
+
+
+def test_playlists_are_marked_with_track_availability():
+    client = Mock()
+    client.current_user_playlists.return_value = {'items': [
+        {'uri': 'spotify:playlist:1', 'owner': {'id': 'me'}},
+        {'uri': 'spotify:playlist:2', 'owner': {'id': 'other'}},
+    ], 'next': None}
+
+    playlists = connected_api(client).list_playlists()
+
+    assert [p['tracks_available'] for p in playlists] == [True, False]
+
+
+def test_search_marks_playlist_track_availability():
+    client = Mock()
+    client.search.return_value = {'playlists': {'items': [{'uri': 'spotify:playlist:2', 'owner': {'id': 'other'}}]}}
+
+    results = connected_api(client).search('query')
+
+    assert results[0]['tracks_available'] is False
+
+
+def test_unshared_playlist_lists_no_tracks():
+    error = Exception('Forbidden')
+    error.http_status = 403
+    client = Mock()
+    client.playlist_items.side_effect = error
+
+    assert connected_api(client).list_tracks('spotify:playlist:PID') == []
+
+
+def test_other_playlist_errors_are_raised():
+    error = Exception('Server error')
+    error.http_status = 500
+    client = Mock()
+    client.playlist_items.side_effect = error
+
+    with pytest.raises(Exception, match='Server error'):
+        connected_api(client).list_tracks('spotify:playlist:PID')
+
+
+def test_playlists_known_as_unshared_are_not_requested():
+    client = Mock()
+    client.current_user_playlists.return_value = {'items': [
+        {'uri': 'spotify:playlist:theirs', 'owner': {'id': 'other'}},
+    ], 'next': None}
+    api = connected_api(client)
+    api.list_playlists()
+
+    assert api.list_tracks('spotify:playlist:theirs') == []
+    client.playlist_items.assert_not_called()

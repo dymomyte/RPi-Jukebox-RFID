@@ -25,6 +25,7 @@ const AlbumListItem = ({
   cover_url,
   isButton = true,
   provider = 'mpd',
+  tracks_available = true,
   view = 'albums',
 }) => {
   const { t } = useTranslation();
@@ -70,6 +71,8 @@ const AlbumListItem = ({
     const searchParams = new URLSearchParams(urlSearch);
     if (content_uri) searchParams.set('content_uri', content_uri);
     else searchParams.delete('content_uri');
+    if (tracks_available === false) searchParams.set('tracks_available', 'false');
+    else searchParams.delete('tracks_available');
     const search = searchParams.toString();
     const location = [
       `/library/${provider}/${view}/${artist}/${encodedAlbum}`,
@@ -89,7 +92,10 @@ const AlbumListItem = ({
       }
       <ListItemText
         primary={album || t('library.albums.unknown-album')}
-        secondary={albumartist || null}
+        secondary={[
+          albumartist,
+          tracks_available === false && t('library.spotify.tracks-not-shared-short'),
+        ].filter(Boolean).join(' • ') || null}
       />
     </>
   );

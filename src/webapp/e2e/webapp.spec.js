@@ -153,6 +153,24 @@ async function mockBackend(
             },
           ],
         },
+        ...(spotify ? [{
+          id: 'spotify',
+          label: 'Spotify',
+          views: [
+            {
+              id: 'playlists',
+              label: 'Playlists',
+              kind: 'items',
+              content_types: ['playlist'],
+            },
+            {
+              id: 'albums',
+              label: 'Albums',
+              kind: 'items',
+              content_types: ['album'],
+            },
+          ],
+        }] : []),
         ...(streamingLibrary ? [{
           id: 'streaming',
           label: 'Streaming',
@@ -183,11 +201,32 @@ async function mockBackend(
           album: 'Discovery',
           artists: ['Daft Punk'],
           cover_url: null,
+          duration_ms: 320000,
+          name: 'One More Time',
+          type: 'track',
+          uri: 'spotify:track:0DiWol3AO6WpXZgp0goxAV',
+        },
+        {
+          album: 'Discovery',
+          artists: ['Daft Punk'],
+          cover_url: null,
           name: 'Discovery',
           type: 'album',
           uri: 'spotify:album:2noRn2Aes5aoNVsU6iWThc',
         },
+        {
+          album: null,
+          artists: ['Someone'],
+          cover_url: null,
+          name: 'Daft Punk Mix',
+          tracks_available: false,
+          type: 'playlist',
+          uri: 'spotify:playlist:mix',
+        },
       ];
+    }
+    if (key === 'list_songs_by_artist_and_album' && payload.kwargs.content_uri === 'spotify:playlist:theirs') {
+      result = [];
     }
     if (key === 'list_library_items') {
       const localItems = rpcResults.list_albums.flatMap(entry => (
@@ -198,6 +237,24 @@ async function mockBackend(
           provider: 'mpd',
         }))
       ));
+      const spotifyItems = spotify ? [
+        {
+          albumartist: 'Me',
+          album: 'Road Trip',
+          content_type: 'playlist',
+          content_uri: 'spotify:playlist:mine',
+          provider: 'spotify',
+          tracks_available: true,
+        },
+        {
+          albumartist: 'triple j',
+          album: 'Hottest 100',
+          content_type: 'playlist',
+          content_uri: 'spotify:playlist:theirs',
+          provider: 'spotify',
+          tracks_available: false,
+        },
+      ] : [];
       const streamingItems = streamingLibrary ? [{
         albumartist: 'Family',
         album: 'Bedtime Stories',
@@ -205,7 +262,7 @@ async function mockBackend(
         content_uri: 'service:playlist:bedtime',
         provider: 'streaming',
       }] : [];
-      result = [...localItems, ...streamingItems].filter(item => (
+      result = [...localItems, ...spotifyItems, ...streamingItems].filter(item => (
         (!payload.kwargs.provider || item.provider === payload.kwargs.provider) &&
         (
           !payload.kwargs.content_types ||
@@ -508,6 +565,60 @@ test('Spotify search assigns provider-aware album cards', async ({ page }) => {
     card_id: '0001234567',
     cmd_alias: 'play_album',
     overwrite: true,
+  });
+  expect(consoleErrors).toEqual([]);
+});
+
+test('Spotify library search finds songs, albums and playlists', async ({ page }) => {
+  const consoleErrors = collectConsoleErrors(page);
+  const { rpcCalls } = await mockBackend(page, { spotify: true });
+  await page.goto('/#/library/spotify/playlists');
+
+  await page.getByRole('button', { name: 'Show search' }).click();
+  const searchBox = page.getByRole('textbox', { name: 'Search your library and Spotify' });
+  await searchBox.fill('road');
+  await expect(page.getByRole('heading', { name: 'In your library' })).toBeVisible();
+  await expect(page.getByText('Road Trip')).toBeVisible();
+
+  await searchBox.fill('daft');
+
+  await expect(page.getByRole('heading', { name: 'Songs on Spotify' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Albums on Spotify' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Playlists on Spotify' })).toBeVisible();
+  await expect(page.getByText('Someone • Tracks not shared by Spotify')).toBeVisible();
+  // Typing is debounced: no searches for the partial queries
+  const queries = rpcCalls.filter(call => call.method === 'search').map(call => call.kwargs.query);
+  expect(queries.filter(query => query === 'daft')).toHaveLength(1);
+  expect(queries.filter(query => ['d', 'da', 'daf', 'r', 'ro', 'roa'].includes(query))).toEqual([]);
+
+  await expect(page.getByRole('heading', { name: 'In your library' })).toHaveCount(0);
+  await page.getByText('One More Time').click();
+  await expect.poll(() => (
+    rpcCalls.find(call => call.method === 'play_single')?.kwargs
+  )).toEqual({ song_url: 'spotify:track:0DiWol3AO6WpXZgp0goxAV', provider: 'spotify' });
+
+  await page.getByRole('button', { name: /^Discovery/ }).click();
+  await expect(page).toHaveURL(/#\/library\/spotify\/albums\/Daft%20Punk\/Discovery\?content_uri=spotify%3Aalbum%3A2noRn2Aes5aoNVsU6iWThc/);
+  expect(consoleErrors).toEqual([]);
+});
+
+test('Spotify playlists without shared tracks can still be played', async ({ page }) => {
+  const consoleErrors = collectConsoleErrors(page);
+  const { rpcCalls } = await mockBackend(page, { spotify: true });
+  await page.goto('/#/library/spotify/playlists');
+
+  await expect(page.getByText('Me', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: /Hottest 100/ }).click();
+
+  await expect(page.getByText("Spotify doesn't share the tracks of playlists you don't own.", { exact: false })).toBeVisible();
+  await page.getByRole('button', { name: 'Play' }).click();
+  await expect.poll(() => (
+    rpcCalls.find(call => call.method === 'play_album')?.kwargs
+  )).toEqual({
+    albumartist: 'triple j',
+    album: 'Hottest 100',
+    content_uri: 'spotify:playlist:theirs',
+    provider: 'spotify',
   });
   expect(consoleErrors).toEqual([]);
 });

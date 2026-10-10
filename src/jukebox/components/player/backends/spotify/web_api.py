@@ -16,6 +16,7 @@ changes are used: ``/me/playlists``, ``/me/albums``, ``/albums/{id}``,
 ``/playlists/{id}``, ``/playlists/{id}/items``, ``/tracks/{id}`` and ``/search``.
 Note that playlist contents are only returned for playlists the user owns or
 collaborates on; other playlists can still be played and assigned to cards.
+Playlist items and search results therefore carry ``tracks_available``.
 """
 import logging
 import time
@@ -66,6 +67,7 @@ class SpotifyWebApi:
         # card list / repeated cover lookups don't re-hit the Web API every render.
         self._metadata_cache = {}
         self._listing_cache = {}
+        self._user_id = None
         self.set_client_id(client_id)
 
     def set_client_id(self, client_id: str):
@@ -74,6 +76,7 @@ class SpotifyWebApi:
         self._auth_manager = None
         self._client = None
         self._listing_cache = {}
+        self._user_id = None
         if not client_id:
             logger.warning("Spotify Web API disabled: client_id not configured")
             return
@@ -133,6 +136,7 @@ class SpotifyWebApi:
             logger.error(f"Spotify auth completion failed: {e}")
             return {'success': False}
         self._listing_cache = {}
+        self._user_id = None
         return {'success': True}
 
     def _ready(self, purpose: str) -> bool:
@@ -140,6 +144,15 @@ class SpotifyWebApi:
             logger.info(f"Spotify {purpose} unavailable: Web API not configured or not authorized")
             return False
         return True
+
+    def _current_user_id(self):
+        """Return the authorized user's id, or None if it cannot be determined."""
+        if self._user_id is None:
+            try:
+                self._user_id = self._client.current_user().get('id')
+            except Exception as e:
+                logger.warning(f"Could not read the Spotify user: {e}")
+        return self._user_id
 
     # -- library ------------------------------------------------------------
     def _cached(self, key: str, fetch):
@@ -168,7 +181,7 @@ class SpotifyWebApi:
         if not self._ready('playlists'):
             return []
         return self._cached('playlists', lambda: [
-            shape_playlist_item(entry)
+            shape_playlist_item(entry, self._current_user_id())
             for entry in self._collect(self._client.current_user_playlists(limit=_PAGE_SIZE))
         ])
 
@@ -192,15 +205,31 @@ class SpotifyWebApi:
         content_type, content_id = uri_utils.parse_uri(content_uri)
         if content_type not in ('album', 'playlist'):
             raise ValueError(f"Cannot list tracks of Spotify {content_type} '{content_uri}'")
+        if content_type == 'playlist' and self._is_known_unshared(content_id):
+            return []
         return self._cached(f'tracks:{content_type}:{content_id}',
                             lambda: self._fetch_tracks(content_type, content_id))
+
+    def _is_known_unshared(self, playlist_id: str) -> bool:
+        """Return True if the cached playlist listing marks the playlist's tracks as unavailable."""
+        cached = self._listing_cache.get('playlists')
+        playlists = cached[1] if cached else []
+        return any(not item['tracks_available'] and uri_utils.parse_uri(item['content_uri'])[1] == playlist_id
+                   for item in playlists)
 
     def _fetch_tracks(self, content_type: str, content_id: str) -> list:
         if content_type == 'album':
             album = self._client.album(content_id)
             tracks = self._collect(album.get('tracks'))
             return [shape_song(track, album) for track in tracks]
-        entries = self._collect(self._client.playlist_items(content_id, additional_types=('track',)))
+        try:
+            entries = self._collect(self._client.playlist_items(content_id, additional_types=('track',)))
+        except Exception as e:
+            if getattr(e, 'http_status', None) != 403:
+                raise
+            # Development Mode apps only get the contents of playlists the user owns or collaborates on
+            logger.info(f"Spotify does not share the tracks of playlist '{content_id}'")
+            return []
         # Since February 2026 playlist entries carry the track as 'item' (previously 'track')
         tracks = (entry.get('item') or entry.get('track') for entry in entries)
         return [shape_song(track) for track in tracks if track and track.get('type', 'track') == 'track']
@@ -229,7 +258,7 @@ class SpotifyWebApi:
         except Exception as e:
             logger.error(f"Spotify search failed: {e}")
             return []
-        return flatten_search(raw)
+        return flatten_search(raw, self._current_user_id())
 
     def get_metadata(self, uri: str) -> dict:
         """Return normalized metadata for a single Spotify URI.
@@ -279,7 +308,18 @@ def artist_names(artists):
     return [a.get('name', '') for a in (artists or [])]
 
 
-def shape_playlist_item(item: dict) -> dict:
+def playlist_tracks_available(item: dict, user_id: str = None) -> bool:
+    """Return whether the Web API lists the tracks of a playlist.
+
+    Development Mode apps only get the contents of playlists the user owns or
+    collaborates on. Without a known ``user_id`` the tracks are assumed available.
+    """
+    if user_id is None or item.get('collaborative'):
+        return True
+    return (item.get('owner') or {}).get('id') == user_id
+
+
+def shape_playlist_item(item: dict, user_id: str = None) -> dict:
     """Shape a Spotify playlist object into a player library item."""
     owner = item.get('owner') or {}
     return {
@@ -289,6 +329,7 @@ def shape_playlist_item(item: dict) -> dict:
         'albumartist': owner.get('display_name') or owner.get('id'),
         'album': item.get('name'),
         'cover_url': first_image_url(item.get('images')),
+        'tracks_available': playlist_tracks_available(item, user_id),
     }
 
 
@@ -352,7 +393,7 @@ def shape_search_album(item: dict) -> dict:
     }
 
 
-def shape_search_playlist(item: dict) -> dict:
+def shape_search_playlist(item: dict, user_id: str = None) -> dict:
     """Shape a Spotify playlist object into a search result."""
     owner = item.get('owner') or {}
     return {
@@ -363,24 +404,25 @@ def shape_search_playlist(item: dict) -> dict:
         'album': None,
         'cover_url': first_image_url(item.get('images')),
         'duration_ms': None,
+        'tracks_available': playlist_tracks_available(item, user_id),
     }
 
 
-_SEARCH_SHAPERS = {
-    'tracks': shape_search_track,
-    'albums': shape_search_album,
-    'playlists': shape_search_playlist,
-}
-
-
-def flatten_search(raw: dict) -> list:
+def flatten_search(raw: dict, user_id: str = None) -> list:
     """Flatten a spotipy search response into a single ordered list of items.
 
     spotipy returns one keyed section per requested type, each with an
     ``items`` list (some entries may be ``None``).
+
+    :param user_id: Id of the authorized user, to tell which playlists list their tracks
     """
+    shapers = {
+        'tracks': shape_search_track,
+        'albums': shape_search_album,
+        'playlists': lambda item: shape_search_playlist(item, user_id),
+    }
     results = []
-    for section_key, shaper in _SEARCH_SHAPERS.items():
+    for section_key, shaper in shapers.items():
         section = raw.get(section_key) or {}
         for item in section.get('items') or []:
             if item:

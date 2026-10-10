@@ -148,7 +148,8 @@
       "albums": "Alben",
       "folders": "Ordner",
       "playlists": "Playlists",
-      "tracks": "Titel"
+      "tracks": "Titel",
+      "search-spotify-label": "Bibliothek und Spotify durchsuchen"
     },
     "sources": {
       "mpd": "Lokal",
@@ -232,6 +233,16 @@
       "empty-library": "Deine Bibliothek ist noch leer!",
       "no-songs-in-album": "Komisch, in diesem Album gibt es keine Songs.",
       "assign-to-card": "Dieses Album registrieren"
+    },
+    "spotify": {
+      "library": "In deiner Bibliothek",
+      "songs": "Titel auf Spotify",
+      "albums": "Alben auf Spotify",
+      "playlists": "Playlists auf Spotify",
+      "search-error": "Die Spotify-Suche ist fehlgeschlagen. Prüfe die Verbindung zur Spotify Web API in den Einstellungen.",
+      "no-results": "Auf Spotify wurde nichts gefunden.",
+      "tracks-not-shared-short": "Titel von Spotify nicht freigegeben",
+      "tracks-not-shared": "Spotify gibt die Titel von Playlists, die dir nicht gehören, nicht frei. Du kannst die Playlist trotzdem abspielen oder einer Karte zuweisen."
     }
   },
   "navigation": {

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from 'react-i18next';
 
 import {
+  Box,
   CircularProgress,
   Typography,
 } from "@mui/material";
@@ -15,6 +16,7 @@ const Albums = ({
   contentTypes,
   musicFilter,
   provider,
+  title,
   view,
 }) => {
   const { t } = useTranslation();
@@ -56,12 +58,27 @@ const Albums = ({
     };
   }, [contentTypesKey, provider]);
 
+  const visibleAlbums = albums.filter(search);
+
+  // A titled section is only shown when it has matches
+  if (title) {
+    if (isLoading || error || !visibleAlbums.length) return null;
+    return (
+      <Box component="section" sx={{ width: '100%' }}>
+        <Typography component="h2" variant="h6" sx={{ paddingX: 1 }}>
+          {title}
+        </Typography>
+        <AlbumList albums={visibleAlbums} musicFilter={musicFilter} view={view} />
+      </Box>
+    );
+  }
+
   return (
     <>
       {isLoading
         ? <CircularProgress />
         : <AlbumList
-            albums={albums.filter(search)}
+            albums={visibleAlbums}
             musicFilter={musicFilter}
             view={view}
       />}

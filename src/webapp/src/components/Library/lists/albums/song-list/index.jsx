@@ -28,6 +28,7 @@ const SongList = ({
   const provider = providerProperty || routeProvider || 'mpd';
   const view = viewProperty || routeView || 'albums';
   const contentUri = searchParams.get('content_uri') || undefined;
+  const tracksAvailable = searchParams.get('tracks_available') !== 'false';
   const [songs, setSongs] = useState([]);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -66,7 +67,7 @@ const SongList = ({
         album={decodeURIComponent(album)}
         albumartist={decodeURIComponent(artist)}
         contentUri={contentUri}
-        disabled={songs.length === 0}
+        disabled={songs.length === 0 && tracksAvailable}
         isSelecting={isSelecting}
         provider={provider}
         registerMusicToCard={registerMusicToCard}
@@ -93,6 +94,11 @@ const SongList = ({
                 />
               )}
             </List>
+        }
+        {!isLoading && !tracksAvailable && songs.length === 0 &&
+          <Typography sx={{ padding: '0 16px' }}>
+            {t('library.spotify.tracks-not-shared')}
+          </Typography>
         }
         {error &&
           <Typography>{`${t('library.albums.no-songs-in-album')} 🤔`}</Typography>

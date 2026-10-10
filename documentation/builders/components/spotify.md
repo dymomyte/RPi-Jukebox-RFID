@@ -100,8 +100,10 @@ Spotify content is assigned to cards like local music:
 
 * **From the library:** in the Web App library, open the **Spotify** source and select one of your
   playlists or saved albums. Assign it to a card, or assign a single track from its track list.
-* **By search:** in the card editor, choose **Play music** and use **Search Spotify** to find any
-  track, album or playlist in the catalog.
+* **By search:** in the Web App library, open the **Spotify** source and search. Besides your
+  matching playlists and albums, this finds songs, albums and playlists in the whole Spotify
+  catalog. Select a song to play it, or an album or playlist to see its tracks. In the card editor,
+  choose **Play music** and use **Search Spotify** to assign search results directly.
 
 Cards store the Spotify URI together with the provider `spotify`, for example in
 `shared/settings/cards.yaml`:
@@ -139,7 +141,8 @@ activity.
   `http://127.0.0.1:8080/callback` (IP, not `localhost`), and that the account is on the app's
   allowlist.
 * **A playlist shows no tracks.** For apps in development mode, Spotify only returns the contents
-  of playlists you own or collaborate on. Other playlists can still be played and assigned to cards.
+  of playlists you own or collaborate on. The library marks other playlists with
+  *Tracks not shared by Spotify*. They can still be played and assigned to cards.
 * **The Web API needs to be connected again after an update.** The Jukebox requests read access to
   your playlists and saved albums. A token from an earlier version without these permissions is not
   used, so connect again in the settings.

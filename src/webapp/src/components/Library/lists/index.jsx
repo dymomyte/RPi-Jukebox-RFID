@@ -11,12 +11,15 @@ import {
 import {
   CircularProgress,
   Grid,
+  Stack,
 } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 
 import Albums from './albums';
 import LibraryOverview from './overview';
 import SongList from './albums/song-list';
 import Folders from './folders';
+import SpotifyCatalog from './spotify-catalog';
 import LibraryHeader from "../library-header";
 import SelectorHeader from "../selector-header";
 
@@ -58,8 +61,10 @@ const LibrarySourceView = ({
   isSelecting,
   isLoadingSources,
   musicFilter,
+  registerMusicToCard,
   sources,
 }) => {
+  const { t } = useTranslation();
   const { provider, view } = useParams();
   const sourceView = findSourceView(sources, provider, view);
 
@@ -73,14 +78,30 @@ const LibrarySourceView = ({
     );
   }
 
-  return (
+  // Searching the Spotify source also searches the Spotify catalog
+  const searchesCatalog = provider === 'spotify' && musicFilter.trim();
+  const albums = (
     <Albums
       contentTypes={sourceView.content_types}
       isSelecting={isSelecting}
       musicFilter={musicFilter}
       provider={provider}
+      title={searchesCatalog ? t('library.spotify.library') : undefined}
       view={view}
     />
+  );
+
+  if (!searchesCatalog) return albums;
+
+  return (
+    <Stack spacing={2} sx={{ width: '100%' }}>
+      {albums}
+      <SpotifyCatalog
+        isSelecting={isSelecting}
+        query={musicFilter}
+        registerMusicToCard={registerMusicToCard}
+      />
+    </Stack>
   );
 };
 
@@ -225,6 +246,7 @@ const LibraryLists = () => {
                   isSelecting={isSelecting}
                   isLoadingSources={isLoadingSources}
                   musicFilter={musicFilter}
+                  registerMusicToCard={registerMusicToCard}
                   sources={sources}
                 />
               }
