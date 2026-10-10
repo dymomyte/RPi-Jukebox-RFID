@@ -55,6 +55,8 @@ GO_LIBRESPOT_DEVICE_NAME="Phoniebox"
 # Install locations (all in the current user's home - go-librespot runs as a user service).
 INSTALL_BIN_DIR="${HOME}/.local/bin"
 INSTALL_BIN_PATH="${INSTALL_BIN_DIR}/go-librespot"
+# go-librespot has no --version flag, so the installed release is recorded here.
+INSTALL_VERSION_PATH="${INSTALL_BIN_DIR}/.go-librespot.version"
 CONFIG_DIR="${HOME}/.config/go-librespot"
 CONFIG_PATH="${CONFIG_DIR}/config.yml"
 SYSTEMD_USER_DIR="${HOME}/.config/systemd/user"
@@ -110,8 +112,7 @@ install_binary() {
 
     if [ -x "${INSTALL_BIN_PATH}" ]; then
         local installed_version
-        # `go-librespot --version` prints something like "go-librespot v0.7.4 ..."
-        installed_version=$("${INSTALL_BIN_PATH}" --version 2>/dev/null | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -n1)
+        installed_version=$(cat "${INSTALL_VERSION_PATH}" 2>/dev/null)
         if [ "${installed_version}" = "${GO_LIBRESPOT_VERSION}" ]; then
             log_info "go-librespot ${GO_LIBRESPOT_VERSION} already installed - skipping download."
             return 0
@@ -135,6 +136,7 @@ install_binary() {
 
     mkdir -p "${INSTALL_BIN_DIR}"
     install -m 755 "${extracted_bin}" "${INSTALL_BIN_PATH}"
+    echo "${GO_LIBRESPOT_VERSION}" > "${INSTALL_VERSION_PATH}"
     rm -rf "${tmp_dir}"
 
     log_info "Installed go-librespot ${GO_LIBRESPOT_VERSION}."
@@ -223,6 +225,11 @@ After=network-online.target pipewire.service pipewire-pulse.service sound.target
 Wants=network-online.target
 
 [Service]
+# Without an RTC the clock is wrong until NTP syncs. go-librespot then fails the
+# TLS connection to Spotify and its API stops responding, so wait for the sync
+# (bounded, so an offline box still starts).
+ExecStartPre=-/bin/sh -c 'for i in \$\$(seq 60); do [ "\$\$(timedatectl show -p NTPSynchronized --value)" = yes ] && exit 0; sleep 2; done'
+TimeoutStartSec=180
 ExecStart=${INSTALL_BIN_PATH} --config_dir ${CONFIG_DIR}
 Restart=always
 RestartSec=5
@@ -311,7 +318,7 @@ Verify the REST API is up:
 
 Check the service / logs:
     systemctl --user status ${SERVICE_NAME}
-    journalctl --user -u ${SERVICE_NAME} -f
+    journalctl --user-unit ${SERVICE_NAME} -f
 
 Spotify playlists and albums appear in the Web App library once the
 Spotify Web API is connected (here or in the Web App settings).
