@@ -540,6 +540,45 @@ test('Spotify settings store the client id', async ({ page }) => {
   expect(consoleErrors).toEqual([]);
 });
 
+test('cards with unknown songs still render their song URL', async ({ page }) => {
+  const consoleErrors = collectConsoleErrors(page);
+  await mockBackend(page);
+  await page.route('**/api/v1/rpc', async (route, request) => {
+    const payload = request.postDataJSON();
+    if (payload.plugin === 'list_cards') {
+      await route.fulfill({
+        body: JSON.stringify({
+          id: payload.id,
+          result: {
+            '0001234567': {
+              action: { args: ['spotify:track:T', 'spotify'] },
+              from_alias: 'play_single',
+              func: 'play_single',
+            },
+          },
+        }),
+        contentType: 'application/json',
+        status: 200,
+      });
+      return;
+    }
+    if (payload.method === 'get_song_by_url') {
+      await route.fulfill({
+        body: JSON.stringify({ id: payload.id, result: [] }),
+        contentType: 'application/json',
+        status: 200,
+      });
+      return;
+    }
+    await route.fallback();
+  });
+  await page.goto('/#/cards/0001234567/edit');
+
+  await expect(page.getByText('Selected song')).toBeVisible();
+  await expect(page.getByText('Unknown title')).toBeVisible();
+  expect(consoleErrors).toEqual([]);
+});
+
 test('cards route shows its loading state while RPC is pending', async ({ page }) => {
   const consoleErrors = collectConsoleErrors(page);
   let releaseRpc;

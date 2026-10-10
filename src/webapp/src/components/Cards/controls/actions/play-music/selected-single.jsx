@@ -21,7 +21,8 @@ const SelectecSingle = ({ values: [song_url, provider] }) => {
       setIsLoading(false);
 
       if(result) {
-        setSong(result[0]);
+        // Fall back to the URL when the provider has no details (e.g. Spotify without Web API)
+        setSong(result[0] || { file: song_url, provider });
       }
       if(error) setError(error);
     }
