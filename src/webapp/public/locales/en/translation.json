@@ -242,7 +242,6 @@
       "playlists": "Playlists",
       "search-error": "Spotify search failed. Check the Spotify Web API connection in the settings.",
       "no-results": "Nothing found on Spotify.",
-      "tracks-not-shared-short": "Tracks not shared by Spotify",
       "tracks-not-shared": "Spotify doesn't share the tracks of playlists you don't own. You can still play this playlist or assign it to a card."
     }
   },

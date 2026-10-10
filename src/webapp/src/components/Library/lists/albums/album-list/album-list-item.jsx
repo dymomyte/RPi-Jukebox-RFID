@@ -92,10 +92,7 @@ const AlbumListItem = ({
       }
       <ListItemText
         primary={album || t('library.albums.unknown-album')}
-        secondary={[
-          albumartist,
-          tracks_available === false && t('library.spotify.tracks-not-shared-short'),
-        ].filter(Boolean).join(' • ') || null}
+        secondary={albumartist || null}
       />
     </>
   );

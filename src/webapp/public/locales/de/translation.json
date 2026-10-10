@@ -242,7 +242,6 @@
       "playlists": "Playlists",
       "search-error": "Die Spotify-Suche ist fehlgeschlagen. Prüfe die Verbindung zur Spotify Web API in den Einstellungen.",
       "no-results": "Auf Spotify wurde nichts gefunden.",
-      "tracks-not-shared-short": "Titel von Spotify nicht freigegeben",
       "tracks-not-shared": "Spotify gibt die Titel von Playlists, die dir nicht gehören, nicht frei. Du kannst die Playlist trotzdem abspielen oder einer Karte zuweisen."
     }
   },

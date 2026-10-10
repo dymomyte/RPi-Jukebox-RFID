@@ -615,7 +615,7 @@ test('Spotify library search finds songs, albums and playlists', async ({ page }
   await expect(
     page.getByRole('listitem').filter({ hasText: 'One More Time' }).getByRole('img', { name: 'Cover' }),
   ).toHaveAttribute('src', '/cover-cache/test-cover.png');
-  await expect(page.getByText('Someone • Tracks not shared by Spotify')).toBeVisible();
+  await expect(page.getByText('Someone', { exact: true })).toBeVisible();
   // Typing is debounced: no searches for the partial queries
   const queries = rpcCalls.filter(call => call.method === 'search').map(call => call.kwargs.query);
   expect(queries.filter(query => query === 'daft')).toHaveLength(1);

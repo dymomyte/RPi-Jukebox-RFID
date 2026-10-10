@@ -142,8 +142,8 @@ activity.
   `http://127.0.0.1:8080/callback` (IP, not `localhost`), and that the account is on the app's
   allowlist.
 * **A playlist shows no tracks.** For apps in development mode, Spotify only returns the contents
-  of playlists you own or collaborate on. The library marks other playlists with
-  *Tracks not shared by Spotify*. They can still be played and assigned to cards.
+  of playlists you own or collaborate on. Opening another playlist explains this; it can still be
+  played and assigned to cards.
 * **The Web API needs to be connected again after an update.** The Jukebox requests read access to
   your playlists, saved albums and Liked Songs. A token from an earlier version without these permissions is not
   used, so connect again in the settings.
