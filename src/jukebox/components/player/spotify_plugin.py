@@ -65,6 +65,34 @@ def write_client_id(client_id: str) -> None:
         jukebox.cfghandler.write_yaml(cfg_credentials, filename)
 
 
+def migrate_play_spotify_cards(filename: str) -> list:
+    """Rewrite cards of the former ``play_spotify`` alias to provider-aware ``play_single`` cards.
+
+    Earlier versions of the Spotify integration used a dedicated card alias. The backend
+    plays any Spotify URI through ``play_single``, so the URI is kept as is.
+
+    :param filename: Card database file
+    :return: IDs of the migrated cards
+    """
+    if not os.path.isfile(filename):
+        return []
+    cfg_cards = jukebox.cfghandler.get_handler('cards')
+    jukebox.cfghandler.load_yaml(cfg_cards, filename)
+    migrated = []
+    with cfg_cards:
+        for card_id, card in cfg_cards.items():
+            if not isinstance(card, dict) or card.get('alias') != 'play_spotify':
+                continue
+            args = card.get('args')
+            uri = args[0] if isinstance(args, list) else args
+            card['alias'] = 'play_single'
+            card['args'] = [uri, 'spotify']
+            migrated.append(card_id)
+        if migrated:
+            jukebox.cfghandler.write_yaml(cfg_cards, filename)
+    return migrated
+
+
 def create_web_api() -> SpotifyWebApi:
     redirect_port = cfg.setndefault('spotify', 'web_api', 'redirect_port', value=8080)
     cache_path = resolve_path(cfg.setndefault('spotify', 'web_api', 'token_cache_file',
