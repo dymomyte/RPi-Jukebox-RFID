@@ -2,7 +2,7 @@
 
 **This is where we are in a nutshell:** Playing music from local folders via RFID trigger. We also built a new WebUI to control the Jukebox from a browser.
 
-There are a few things that are specifically not integrated yet: playing streams, podcasts, or Spotify.
+There are a few things that are specifically not integrated yet: playing streams or podcasts. Spotify is available as an optional player backend.
 
 In the following is the currently implemented feature list in more detail. It also shows some of the shortcomings. However, the list is _not complete in terms of planned features_, but probably _reflects more of where work is currently being put into_.
 
@@ -193,7 +193,10 @@ Topics marked _in progress_ are already in the process of implementation by comm
 
 ### Spotify
 
-- [ ] Everything
+- [x] Playback through go-librespot as optional player backend
+- [x] Library source with the user's playlists and saved albums (Spotify Web API)
+- [x] Card assignment from the library and catalog search
+- [ ] Second swipe actions for Spotify cards
 
 ### Others
 

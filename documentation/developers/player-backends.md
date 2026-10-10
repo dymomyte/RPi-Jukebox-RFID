@@ -4,6 +4,9 @@ The player package exposes one stable RPC and RFID-card contract while routing
 content to one of several playback backends. The first registered backend is
 the default for legacy calls that do not include a provider.
 
+The [Spotify backend](./spotify.md) is a complete example of an optional
+streaming backend.
+
 ## Register A Backend
 
 Create the backend during player initialization and register it with a stable,
