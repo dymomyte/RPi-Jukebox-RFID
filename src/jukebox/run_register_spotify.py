@@ -5,7 +5,9 @@ Setup tool to register the Spotify player backend with the Jukebox.
 Run this once on the box (``installation/components/setup_spotify.sh`` calls it) to:
 
 1. Enable the Spotify backend (``spotify.enable``) in the Jukebox configuration.
-2. Optionally connect the Spotify Web API, which the Web App uses to browse your
+2. Migrate cards of the former ``play_spotify`` alias to ``play_single`` cards
+   with ``provider: spotify``.
+3. Optionally connect the Spotify Web API, which the Web App uses to browse your
    playlists and albums and to search: store the Spotify app ``client_id`` and
    complete the one-time **Authorization Code + PKCE** login. The resulting token
    is cached and refreshed automatically.
@@ -44,6 +46,14 @@ def enable_backend(conffile: str):
     cfg.setn('spotify', 'enable', value=True)
     jukebox.cfghandler.write_yaml(cfg, conffile, only_if_changed=True)
     print(f"Spotify backend enabled in '{conffile}'")
+
+
+def migrate_cards():
+    card_database = spotify_plugin.resolve_path(
+        cfg.getn('rfid', 'card_database', default='../../shared/settings/cards.yaml'))
+    migrated = spotify_plugin.migrate_play_spotify_cards(card_database)
+    if migrated:
+        print(f"Migrated {len(migrated)} 'play_spotify' card(s) to 'play_single': {', '.join(migrated)}")
 
 
 def connect_web_api(client_id: str):
@@ -108,6 +118,7 @@ def main():
         return
 
     enable_backend(args.conffile)
+    migrate_cards()
 
     if args.skip_web_api:
         return

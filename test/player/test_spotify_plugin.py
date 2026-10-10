@@ -133,3 +133,22 @@ def test_account_set_client_id_rebuilds_web_api(registered, config):
     web_api.set_client_id.assert_called_once_with('new')
     assert spotify_plugin.read_client_id() == 'new'
     assert status == {'client_id_configured': True, 'web_api_connected': False, 'go_librespot_connected': True}
+
+
+def test_play_spotify_cards_are_migrated(tmp_path):
+    cards = tmp_path / 'cards.yaml'
+    cards.write_text(
+        "'A':\n  alias: play_spotify\n  args: spotify:track:T\n"
+        "'B':\n  alias: play_spotify\n  args: ['https://open.spotify.com/album/AID']\n"
+        "'C':\n  alias: play_card\n  args: [folder]\n"
+    )
+
+    assert spotify_plugin.migrate_play_spotify_cards(str(cards)) == ['A', 'B']
+
+    migrated = jukebox.cfghandler.ConfigHandler('cards-test')
+    jukebox.cfghandler.load_yaml(migrated, str(cards))
+    assert migrated['A'] == {'alias': 'play_single', 'args': ['spotify:track:T', 'spotify']}
+    assert migrated['B'] == {'alias': 'play_single', 'args': ['https://open.spotify.com/album/AID', 'spotify']}
+    assert migrated['C'] == {'alias': 'play_card', 'args': ['folder']}
+    assert spotify_plugin.migrate_play_spotify_cards(str(cards)) == []
+    assert spotify_plugin.migrate_play_spotify_cards(str(tmp_path / 'missing.yaml')) == []

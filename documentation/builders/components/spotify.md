@@ -117,6 +117,9 @@ Cards store the Spotify URI together with the provider `spotify`, for example in
 
 Share links such as `https://open.spotify.com/album/...` are accepted as well.
 
+Cards registered with the `play_spotify` alias of earlier versions of this integration are
+converted to `play_single` cards when you run `setup_spotify.sh`.
+
 All player controls work the same for Spotify and local music: the Web App player, GPIO buttons,
 volume, the stop-player and sleep timers, and the idle shutdown, which treats Spotify playback as
 activity.
