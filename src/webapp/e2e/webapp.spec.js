@@ -602,6 +602,20 @@ test('Spotify library search finds songs, albums and playlists', async ({ page }
   expect(consoleErrors).toEqual([]);
 });
 
+test('translations load from a URL that changes with their content', async ({ page }) => {
+  const localeRequests = [];
+  page.on('request', request => {
+    const { pathname, search } = new URL(request.url());
+    if (pathname.startsWith('/locales/')) localeRequests.push(`${pathname}${search}`);
+  });
+  await mockBackend(page);
+  await page.goto('/');
+
+  await expect(page.getByRole('link', { name: 'Library' })).toBeVisible();
+  // Regional variants like en-US don't exist and are not requested
+  expect(localeRequests).toEqual([expect.stringMatching(/^\/locales\/en\/translation\.json\?v=[0-9a-f]{12}$/)]);
+});
+
 test('Spotify playlists without shared tracks can still be played', async ({ page }) => {
   const consoleErrors = collectConsoleErrors(page);
   const { rpcCalls } = await mockBackend(page, { spotify: true });

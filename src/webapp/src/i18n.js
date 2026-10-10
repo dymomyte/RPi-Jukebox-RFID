@@ -20,6 +20,11 @@ const i18nReady = i18n
     debug: import.meta.env.DEV,
     // lng: 'en',
     fallbackLng: 'en',
+    // Only en and de exist, so skip requests for regional variants like en-AU
+    load: 'languageOnly',
+    backend: {
+      loadPath: `/locales/{{lng}}/{{ns}}.json?v=${import.meta.env.VITE_LOCALES_VERSION}`,
+    },
     interpolation: {
       escapeValue: false, // not needed for react as it escapes by default
     },
