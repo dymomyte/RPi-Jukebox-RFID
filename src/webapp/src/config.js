@@ -10,6 +10,7 @@ const SUBSCRIPTIONS = [
   'host.temperature.cpu',
   'playerstatus',
   'rfid.card_id',
+  'spotify.auth_status',
   'timers.timer_fade_volume',
   'timers.timer_idle_shutdown',
   'timers.timer_shutdown',

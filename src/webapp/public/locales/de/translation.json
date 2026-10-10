@@ -62,7 +62,17 @@
           },
           "button-label": "Musik auswählen",
           "no-music-selected": "Es ist keine Musik ausgewählt.",
-          "loading-song-error": "Während des Ladens des Songs ist ein Fehler aufgetreten."
+          "loading-song-error": "Während des Ladens des Songs ist ein Fehler aufgetreten.",
+          "spotify": {
+            "search-label": "Spotify durchsuchen",
+            "search-error": "Bei der Spotify-Suche ist ein Fehler aufgetreten. Ist die Spotify Web API in den Einstellungen verbunden?",
+            "no-results": "Keine Ergebnisse gefunden.",
+            "types": {
+              "track": "Titel",
+              "album": "Album",
+              "playlist": "Playlist"
+            }
+          }
         },
         "audio": {
           "repeat": {
@@ -141,7 +151,8 @@
       "tracks": "Titel"
     },
     "sources": {
-      "mpd": "Lokal"
+      "mpd": "Lokal",
+      "spotify": "Spotify"
     },
     "overview": {
       "group": "{{source}}: {{view}}",
@@ -371,6 +382,35 @@
     },
     "systemcontrols": {
       "title": "Systemsteuerung"
+    },
+    "spotify": {
+      "title": "Spotify",
+      "subheader": "Die Wiedergabe läuft über go-librespot. Verbinde die Spotify Web API, um deine Playlists und Alben zu durchsuchen.",
+      "status": {
+        "go-librespot": "go-librespot",
+        "web-api": "Spotify Web API",
+        "connected": "verbunden",
+        "disconnected": "nicht verbunden"
+      },
+      "client-id": {
+        "title": "Spotify-App",
+        "label": "Client-ID",
+        "configured": "Eine Client-ID ist hinterlegt. Gib eine neue ein, um sie zu ersetzen.",
+        "missing": "Gib die Client-ID deiner Spotify-Developer-App ein.",
+        "save": "Client-ID speichern",
+        "save-success": "Client-ID gespeichert.",
+        "save-error": "Die Client-ID konnte nicht gespeichert werden."
+      },
+      "connect": {
+        "title": "Web-API-Autorisierung",
+        "button": "Spotify verbinden",
+        "paste-instructions": "Nach der Freigabe öffnet dein Browser eine Seite, die mit http://127.0.0.1 beginnt und eventuell nicht lädt. Kopiere die vollständige Adresse und füge sie hier ein.",
+        "redirect-label": "Weiterleitungs-URL",
+        "complete": "Verbindung abschließen",
+        "start-error": "Die Autorisierung konnte nicht gestartet werden. Ist eine Client-ID hinterlegt?",
+        "complete-error": "Die Autorisierung ist fehlgeschlagen. Bitte starte erneut.",
+        "complete-success": "Spotify Web API verbunden."
+      }
     }
   }
 }
