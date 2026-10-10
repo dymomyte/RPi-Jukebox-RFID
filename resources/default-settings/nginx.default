@@ -24,6 +24,12 @@ server {
 			error_page 404 = @buildwebui;
 			log_not_found off;
 		}
+		# Translations keep their file names across releases. Revalidate them
+		# (cheap with ETag) so an updated Web App never shows stale texts.
+		location /locales/ {
+			add_header Cache-Control "no-cache" always;
+			try_files $uri =404;
+		}
 		try_files $uri $uri/ =404;
 	}
 
