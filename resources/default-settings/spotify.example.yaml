@@ -1,0 +1,4 @@
+# Spotify app client id (from your Spotify Developer app). Copy to shared/settings/spotify.yaml,
+# or let installation/components/setup_spotify.sh or the Web App settings write it.
+# The app's redirect URI must be http://127.0.0.1:8080/callback (IP, not localhost).
+client_id: ''

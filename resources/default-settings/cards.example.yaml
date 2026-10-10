@@ -66,3 +66,9 @@
       alias: change_volume
       args: -3
       ignore_card_removal_action: true
+'SPOTIFY_ALBUM':
+      alias: play_album
+      args: [Daft Punk, Discovery, 'spotify:album:2noRn2Aes5aoNVsU6iWThc', spotify]
+'SPOTIFY_TRACK':
+      alias: play_single
+      args: ['spotify:track:4uLU6hMCjMI75M1A2tKUQC', spotify]
