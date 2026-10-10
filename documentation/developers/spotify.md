@@ -99,6 +99,18 @@ Development Mode apps are subject to Spotify's February 2026 restrictions:
 * Search returns at most 10 results per type.
 * Batch lookups are gone; the backend only uses single-item endpoints.
 
+Playlist, album and track listings are cached for five minutes (`LISTING_TTL`), cover and
+metadata lookups per URI for the lifetime of the process.
+
+## Known Limitations
+
+* The coordinator holds its lock during catalog calls (`list_library_items`, track listings,
+  cover lookups). Uncached Spotify listings take several Web API requests, during which playback
+  commands such as card swipes wait. The listing cache keeps this to the first load; releasing the
+  lock for read-only catalog calls would be a coordinator change.
+* `play_card` routes to the default backend only, so second-swipe actions are not available for
+  Spotify cards. Supporting them needs a provider-aware `play_card` in the coordinator.
+
 ## go-librespot REST API
 
 go-librespot is pinned and installed by `installation/components/setup_spotify.sh`. It runs as a

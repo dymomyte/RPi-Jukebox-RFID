@@ -23,6 +23,7 @@ def connected_api(client):
     api._client = client
     api._auth_manager = Mock(get_cached_token=Mock(return_value={'access_token': 'x'}))
     api._metadata_cache = {}
+    api._listing_cache = {}
     return api
 
 
@@ -151,3 +152,31 @@ def test_metadata_is_cached():
     assert api.get_metadata('spotify:track:T')['cover_url'] == 'cover'
     assert api.get_metadata('https://open.spotify.com/track/T')['cover_url'] == 'cover'
     client.track.assert_called_once_with('T')
+
+
+def test_listings_are_cached_until_expiry(monkeypatch):
+    clock = Mock(return_value=1000.0)
+    monkeypatch.setattr(web_api.time, 'monotonic', clock)
+    client = Mock()
+    client.current_user_playlists.return_value = {'items': [{'uri': 'spotify:playlist:1'}], 'next': None}
+    api = connected_api(client)
+
+    api.list_playlists()
+    api.list_playlists()
+    assert client.current_user_playlists.call_count == 1
+
+    clock.return_value = 1000.0 + web_api.LISTING_TTL + 1
+    api.list_playlists()
+    assert client.current_user_playlists.call_count == 2
+
+
+def test_listing_cache_is_cleared_after_authorization():
+    client = Mock()
+    client.current_user_playlists.return_value = {'items': [], 'next': None}
+    api = connected_api(client)
+    api.list_playlists()
+
+    api.complete_auth('code')
+    api.list_playlists()
+
+    assert client.current_user_playlists.call_count == 2
