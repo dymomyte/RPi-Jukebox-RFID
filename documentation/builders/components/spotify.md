@@ -78,7 +78,7 @@ curl http://localhost:3678/status
 
 # Service status and logs
 systemctl --user status go-librespot.service
-journalctl --user -u go-librespot.service -f
+journalctl --user-unit go-librespot.service -f
 ```
 
 ### Connect the Web API (library and search)
@@ -146,7 +146,7 @@ activity.
 * **Spotify stops when you log out of SSH.** The service runs as a user service. Enable lingering so
   it keeps running: `sudo loginctl enable-linger $USER`.
 * **Device does not appear in the Spotify app.** Make sure the Pi and your phone/computer are on the
-  same network, then check `journalctl --user -u go-librespot.service -f`.
+  same network, then check `journalctl --user-unit go-librespot.service -f`.
 
 ## See also
 
