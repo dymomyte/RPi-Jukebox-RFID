@@ -22,7 +22,8 @@ The code lives in `src/jukebox/components/player/`:
 * `backends/spotify/__init__.py`: `SpotifyBackend` and the status mapping
 * `backends/spotify/go_librespot_client.py`: REST client for go-librespot
 * `backends/spotify/web_api.py`: Spotify Web API wrapper (spotipy, Authorization Code + PKCE)
-* `backends/spotify/uri_utils.py`: normalizes share links to `spotify:<type>:<id>` URIs
+* `backends/spotify/uri_utils.py`: normalizes share links to `spotify:<type>:<id>` URIs and
+  accepts the Liked Songs collection URI `spotify:user:<user id>:collection`
 * `spotify_plugin.py`: registers the backend when `spotify.enable` is set, plus the
   `player.spotify` account plugin
 
@@ -39,13 +40,13 @@ Spotify setup cannot keep MPD from loading.
 | Contract | Spotify implementation |
 | --- | --- |
 | `play_single(song_url)` | Plays the Spotify URI (normally a track) |
-| `play_album(albumartist, album, content_uri)` | Plays the album or playlist `content_uri`; raises without it |
+| `play_album(albumartist, album, content_uri)` | Plays the album, playlist or Liked Songs `content_uri`; raises without it |
 | Transport, `seek(seconds)` | go-librespot; seek is converted to milliseconds in the backend |
 | `shuffle`, `repeat` | Same options and toggle cycle as MPD, mapped to shuffle/repeat context/track |
 | `playerstatus()` | MPD-shaped dict: `state`, `songid`, `file`, `title`, `artist`, `album`, `elapsed`/`duration` in seconds, `random`/`repeat`/`single`, `cover_url`, `provider` |
 | `set_active(active)` | Status is polled continuously but published only while active |
 | `library_source()` | Source `spotify` with `playlists` and `albums` views (`kind: items`) and a `songs` view (`kind: songs`) |
-| `list_library_items(content_types)` | The user's playlists and saved albums; playlists carry `tracks_available` |
+| `list_library_items(content_types)` | The user's playlists, led by Liked Songs, and saved albums; playlists carry `tracks_available` |
 | `list_library_songs()` | The user's Liked Songs as song entries |
 | `list_songs_by_artist_and_album(..., content_uri)`, `get_song_by_url` | Track listings and lookup through the Web API |
 | `get_album_coverart`, `get_single_coverart` | Remote cover URLs from the Web API |

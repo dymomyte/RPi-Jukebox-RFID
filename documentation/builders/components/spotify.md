@@ -100,7 +100,8 @@ Spotify content is assigned to cards like local music:
 
 * **From the library:** in the Web App library, open the **Spotify** source and select one of your
   playlists or saved albums. Assign it to a card, or assign a single track from its track list.
-  The **Songs** tab lists your Liked Songs; select one to play it or assign it to a card.
+  The **Songs** tab lists your Liked Songs; select one to play it or assign it to a card. To play
+  all of them, use **Liked Songs** at the top of the playlists.
 * **By search:** in the Web App library, open the **Spotify** source and search. Besides your
   matching playlists and albums, this finds songs, albums and playlists in the whole Spotify
   catalog. Select a song to play it, or an album or playlist to see its tracks. In the card editor,

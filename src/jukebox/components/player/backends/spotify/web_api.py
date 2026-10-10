@@ -43,6 +43,9 @@ LISTING_TTL = 300
 
 PROVIDER = 'spotify'
 
+#: Cover Spotify's own clients show for Liked Songs
+LIKED_SONGS_COVER = 'https://misc.scdn.co/liked-songs/liked-songs-300.png'
+
 
 class SpotifyWebApi:
     """Wrapper around spotipy providing Web App friendly results.
@@ -67,7 +70,7 @@ class SpotifyWebApi:
         # card list / repeated cover lookups don't re-hit the Web API every render.
         self._metadata_cache = {}
         self._listing_cache = {}
-        self._user_id = None
+        self._user = None
         self.set_client_id(client_id)
 
     def set_client_id(self, client_id: str):
@@ -76,7 +79,7 @@ class SpotifyWebApi:
         self._auth_manager = None
         self._client = None
         self._listing_cache = {}
-        self._user_id = None
+        self._user = None
         if not client_id:
             logger.warning("Spotify Web API disabled: client_id not configured")
             return
@@ -136,7 +139,7 @@ class SpotifyWebApi:
             logger.error(f"Spotify auth completion failed: {e}")
             return {'success': False}
         self._listing_cache = {}
-        self._user_id = None
+        self._user = None
         return {'success': True}
 
     def _ready(self, purpose: str) -> bool:
@@ -145,14 +148,19 @@ class SpotifyWebApi:
             return False
         return True
 
-    def _current_user_id(self):
-        """Return the authorized user's id, or None if it cannot be determined."""
-        if self._user_id is None:
+    def _current_user(self) -> dict:
+        """Return the authorized user's profile, or ``{}`` if it cannot be read."""
+        if self._user is None:
             try:
-                self._user_id = self._client.current_user().get('id')
+                self._user = self._client.current_user() or {}
             except Exception as e:
                 logger.warning(f"Could not read the Spotify user: {e}")
-        return self._user_id
+                return {}
+        return self._user
+
+    def _current_user_id(self):
+        """Return the authorized user's id, or None if it cannot be determined."""
+        return self._current_user().get('id')
 
     # -- library ------------------------------------------------------------
     def _cached(self, key: str, fetch):
@@ -180,10 +188,14 @@ class SpotifyWebApi:
         """Return the user's playlists as library items."""
         if not self._ready('playlists'):
             return []
-        return self._cached('playlists', lambda: [
-            shape_playlist_item(entry, self._current_user_id())
-            for entry in self._collect(self._client.current_user_playlists(limit=_PAGE_SIZE))
-        ])
+        return self._cached('playlists', self._fetch_playlists)
+
+    def _fetch_playlists(self) -> list:
+        user = self._current_user()
+        playlists = [shape_playlist_item(entry, user.get('id'))
+                     for entry in self._collect(self._client.current_user_playlists(limit=_PAGE_SIZE))]
+        # Liked Songs come first, as in Spotify's own clients
+        return ([shape_liked_songs_item(user)] if user.get('id') else []) + playlists
 
     def list_saved_albums(self) -> list:
         """Return the user's saved albums as library items."""
@@ -213,6 +225,8 @@ class SpotifyWebApi:
         if not self._ready('track listing'):
             return []
         content_type, content_id = uri_utils.parse_uri(content_uri)
+        if content_type == 'collection':
+            return self.list_saved_tracks()
         if content_type not in ('album', 'playlist'):
             raise ValueError(f"Cannot list tracks of Spotify {content_type} '{content_uri}'")
         if content_type == 'playlist' and self._is_known_unshared(content_id):
@@ -284,6 +298,8 @@ class SpotifyWebApi:
         except ValueError as e:
             logger.error(f"get_metadata: {e}")
             return {}
+        if uri_type == 'collection':
+            return shape_search_liked_songs(uri)
         cache_key = f"{uri_type}:{uri_id}"
         cached = self._metadata_cache.get(cache_key)
         if cached is not None:
@@ -341,6 +357,25 @@ def shape_playlist_item(item: dict, user_id: str = None) -> dict:
         'cover_url': first_image_url(item.get('images')),
         'tracks_available': playlist_tracks_available(item, user_id),
     }
+
+
+def shape_liked_songs_item(user: dict) -> dict:
+    """Shape the user's Liked Songs into a playlist library item."""
+    return {
+        'provider': PROVIDER,
+        'content_type': 'playlist',
+        'content_uri': uri_utils.collection_uri(user['id']),
+        'albumartist': user.get('display_name') or user['id'],
+        'album': 'Liked Songs',
+        'cover_url': LIKED_SONGS_COVER,
+        'tracks_available': True,
+    }
+
+
+def shape_search_liked_songs(uri: str) -> dict:
+    """Return the metadata of a Liked Songs collection URI."""
+    return {'uri': uri, 'type': 'collection', 'name': 'Liked Songs', 'artists': [],
+            'album': None, 'cover_url': LIKED_SONGS_COVER, 'duration_ms': None}
 
 
 def shape_album_item(item: dict) -> dict:

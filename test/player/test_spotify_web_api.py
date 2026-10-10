@@ -24,8 +24,8 @@ def connected_api(client):
     api._auth_manager = Mock(get_cached_token=Mock(return_value={'access_token': 'x'}))
     api._metadata_cache = {}
     api._listing_cache = {}
-    api._user_id = None
-    client.current_user.return_value = {'id': 'me'}
+    api._user = None
+    client.current_user.return_value = {'id': 'me', 'display_name': 'Me Myself'}
     return api
 
 
@@ -120,7 +120,8 @@ def test_listings_follow_pages_up_to_limit(monkeypatch):
 
     playlists = connected_api(client).list_playlists()
 
-    assert len(playlists) == 3
+    # Liked Songs plus the playlists up to the limit
+    assert len(playlists) == 4
     client.next.assert_called_once_with(page)
 
 
@@ -135,6 +136,49 @@ def test_saved_tracks_are_listed_as_songs():
 
     client.current_user_saved_tracks.assert_called_once_with(limit=web_api._PAGE_SIZE)
     assert songs == [web_api.shape_song(TRACK)]
+
+
+def test_liked_songs_lead_the_playlists():
+    client = Mock()
+    client.current_user_playlists.return_value = {'items': [{'uri': 'spotify:playlist:1', 'owner': {'id': 'me'}}],
+                                                  'next': None}
+
+    playlists = connected_api(client).list_playlists()
+
+    assert playlists[0] == {
+        'provider': 'spotify', 'content_type': 'playlist', 'content_uri': 'spotify:user:me:collection',
+        'albumartist': 'Me Myself', 'album': 'Liked Songs', 'cover_url': web_api.LIKED_SONGS_COVER,
+        'tracks_available': True,
+    }
+    assert [p['content_uri'] for p in playlists[1:]] == ['spotify:playlist:1']
+
+
+def test_playlists_without_user_have_no_liked_songs():
+    client = Mock()
+    client.current_user_playlists.return_value = {'items': [{'uri': 'spotify:playlist:1'}], 'next': None}
+    api = connected_api(client)
+    client.current_user.side_effect = Exception('offline')
+
+    assert [p['content_uri'] for p in api.list_playlists()] == ['spotify:playlist:1']
+
+
+def test_liked_songs_list_the_saved_tracks():
+    client = Mock()
+    client.current_user_saved_tracks.return_value = {'items': [{'track': TRACK}], 'next': None}
+
+    songs = connected_api(client).list_tracks('spotify:user:me:collection')
+
+    assert [song['file'] for song in songs] == ['spotify:track:T']
+
+
+def test_liked_songs_metadata_needs_no_request():
+    client = Mock()
+
+    metadata = connected_api(client).get_metadata('spotify:user:me:collection')
+
+    assert metadata['name'] == 'Liked Songs'
+    assert metadata['cover_url'] == web_api.LIKED_SONGS_COVER
+    assert client.method_calls == []
 
 
 def test_unlistable_content_raises():
@@ -214,7 +258,7 @@ def test_playlists_are_marked_with_track_availability():
         {'uri': 'spotify:playlist:2', 'owner': {'id': 'other'}},
     ], 'next': None}
 
-    playlists = connected_api(client).list_playlists()
+    playlists = connected_api(client).list_playlists()[1:]
 
     assert [p['tracks_available'] for p in playlists] == [True, False]
 

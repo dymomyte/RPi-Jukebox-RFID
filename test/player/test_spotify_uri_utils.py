@@ -22,6 +22,9 @@ from components.player.backends.spotify import uri_utils
     # User-context playlist URI collapses to canonical
     ('spotify:user:someone:playlist:37i9dQZF1DXcBWIGoYBM5M',
      'spotify:playlist:37i9dQZF1DXcBWIGoYBM5M'),
+    # Liked Songs collection keeps its user context
+    ('spotify:user:some.one_1:collection',
+     'spotify:user:some.one_1:collection'),
     # Whitespace tolerated
     ('  spotify:track:6rqhFgbbKwnb9MLmUQDhG6  ',
      'spotify:track:6rqhFgbbKwnb9MLmUQDhG6'),
@@ -37,6 +40,7 @@ def test_normalize_uri(raw, expected):
     'https://example.com/track/abc',
     'spotify:track:',
     'spotify:unknown:abc',
+    'spotify:user::collection',
 ])
 def test_normalize_uri_invalid(bad):
     with pytest.raises(ValueError):
@@ -46,3 +50,4 @@ def test_normalize_uri_invalid(bad):
 def test_parse_uri():
     assert uri_utils.parse_uri('https://open.spotify.com/track/ID123?si=x') == ('track', 'ID123')
     assert uri_utils.parse_uri('spotify:album:AID') == ('album', 'AID')
+    assert uri_utils.parse_uri('spotify:user:me:collection') == ('collection', 'me')

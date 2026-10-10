@@ -10,6 +10,9 @@ Spotify content can be referenced in two common forms:
 go-librespot and the Web API both expect the ``spotify:<type>:<id>`` form.
 This module converts share links to that canonical form and passes through
 URIs that are already canonical.
+
+A user's Liked Songs have no id of their own and use the collection URI
+``spotify:user:<user id>:collection``, which go-librespot plays as a context.
 """
 import re
 
@@ -29,6 +32,15 @@ _URI_RE = re.compile(
 )
 
 
+# A user's Liked Songs, e.g. spotify:user:<user id>:collection
+_COLLECTION_RE = re.compile(r'^spotify:user:(?P<id>[^:\s]+):collection$', re.IGNORECASE)
+
+
+def collection_uri(user_id: str) -> str:
+    """Return the URI of the Liked Songs of ``user_id``."""
+    return f"spotify:user:{user_id}:collection"
+
+
 def normalize_uri(uri: str) -> str:
     """Normalize a Spotify reference to canonical ``spotify:<type>:<id>`` form.
 
@@ -40,6 +52,10 @@ def normalize_uri(uri: str) -> str:
         raise ValueError(f"Not a valid Spotify reference: {uri!r}")
 
     candidate = uri.strip()
+
+    match = _COLLECTION_RE.match(candidate)
+    if match:
+        return collection_uri(match.group('id'))
 
     match = _URI_RE.match(candidate)
     if match:
@@ -59,9 +75,13 @@ def parse_uri(uri: str):
     Accepts share links and URIs (normalized internally).
 
     :param uri: A Spotify URI or share link
-    :return: Tuple ``(type, id)`` e.g. ``('track', '6rqhFgbbKwnb9MLmUQDhG6')``
+    :return: Tuple ``(type, id)`` e.g. ``('track', '6rqhFgbbKwnb9MLmUQDhG6')``,
+        or ``('collection', <user id>)`` for Liked Songs
     :raises ValueError: if the input cannot be parsed
     """
     normalized = normalize_uri(uri)
+    match = _COLLECTION_RE.match(normalized)
+    if match:
+        return 'collection', match.group('id')
     _, uri_type, uri_id = normalized.split(':')
     return uri_type, uri_id

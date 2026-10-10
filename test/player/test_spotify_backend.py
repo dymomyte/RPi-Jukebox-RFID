@@ -233,11 +233,13 @@ def test_play_content_normalizes_and_remembers_uri():
     backend.play_single('https://open.spotify.com/track/TID?si=x')
     backend.play_album('Artist', 'Album', 'spotify:playlist:PID')
     backend.replay()
+    backend.play_album('Me', 'Liked Songs', 'spotify:user:me:collection')
 
     assert backend.client.load.call_args_list == [
         call('spotify:track:TID'),
         call('spotify:playlist:PID'),
         call('spotify:playlist:PID'),
+        call('spotify:user:me:collection'),
     ]
 
 
