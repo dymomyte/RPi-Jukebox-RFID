@@ -235,10 +235,10 @@
       "assign-to-card": "Assign album to card"
     },
     "spotify": {
-      "library": "In your library",
-      "songs": "Songs on Spotify",
-      "albums": "Albums on Spotify",
-      "playlists": "Playlists on Spotify",
+      "library": "Your library",
+      "songs": "Songs",
+      "albums": "Albums",
+      "playlists": "Playlists",
       "search-error": "Spotify search failed. Check the Spotify Web API connection in the settings.",
       "no-results": "Nothing found on Spotify.",
       "tracks-not-shared-short": "Tracks not shared by Spotify",

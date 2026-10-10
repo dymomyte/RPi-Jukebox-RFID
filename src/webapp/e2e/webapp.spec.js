@@ -200,7 +200,7 @@ async function mockBackend(
         {
           album: 'Discovery',
           artists: ['Daft Punk'],
-          cover_url: null,
+          cover_url: '/cover-cache/test-cover.png',
           duration_ms: 320000,
           name: 'One More Time',
           type: 'track',
@@ -571,33 +571,37 @@ test('Spotify search assigns provider-aware album cards', async ({ page }) => {
 
 test('Spotify library search finds songs, albums and playlists', async ({ page }) => {
   const consoleErrors = collectConsoleErrors(page);
-  const { rpcCalls } = await mockBackend(page, { spotify: true });
+  const { rpcCalls } = await mockBackend(page, { showCovers: true, spotify: true });
   await page.goto('/#/library/spotify/playlists');
 
   await page.getByRole('button', { name: 'Show search' }).click();
   const searchBox = page.getByRole('textbox', { name: 'Search your library and Spotify' });
   await searchBox.fill('road');
-  await expect(page.getByRole('heading', { name: 'In your library' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Your library' })).toBeVisible();
   await expect(page.getByText('Road Trip')).toBeVisible();
 
   await searchBox.fill('daft');
 
-  await expect(page.getByRole('heading', { name: 'Songs on Spotify' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Albums on Spotify' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Playlists on Spotify' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Songs' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Albums' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Playlists' })).toBeVisible();
+  // Search results mix albums, so songs show their own cover
+  await expect(
+    page.getByRole('listitem').filter({ hasText: 'One More Time' }).getByRole('img', { name: 'Cover' }),
+  ).toHaveAttribute('src', '/cover-cache/test-cover.png');
   await expect(page.getByText('Someone • Tracks not shared by Spotify')).toBeVisible();
   // Typing is debounced: no searches for the partial queries
   const queries = rpcCalls.filter(call => call.method === 'search').map(call => call.kwargs.query);
   expect(queries.filter(query => query === 'daft')).toHaveLength(1);
   expect(queries.filter(query => ['d', 'da', 'daf', 'r', 'ro', 'roa'].includes(query))).toEqual([]);
 
-  await expect(page.getByRole('heading', { name: 'In your library' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Your library' })).toHaveCount(0);
   await page.getByText('One More Time').click();
   await expect.poll(() => (
     rpcCalls.find(call => call.method === 'play_single')?.kwargs
   )).toEqual({ song_url: 'spotify:track:0DiWol3AO6WpXZgp0goxAV', provider: 'spotify' });
 
-  await page.getByRole('button', { name: /^Discovery/ }).click();
+  await page.getByRole('button', { name: /Discovery/ }).click();
   await expect(page).toHaveURL(/#\/library\/spotify\/albums\/Daft%20Punk\/Discovery\?content_uri=spotify%3Aalbum%3A2noRn2Aes5aoNVsU6iWThc/);
   expect(consoleErrors).toEqual([]);
 });

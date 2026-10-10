@@ -235,10 +235,10 @@
       "assign-to-card": "Dieses Album registrieren"
     },
     "spotify": {
-      "library": "In deiner Bibliothek",
-      "songs": "Titel auf Spotify",
-      "albums": "Alben auf Spotify",
-      "playlists": "Playlists auf Spotify",
+      "library": "Deine Bibliothek",
+      "songs": "Titel",
+      "albums": "Alben",
+      "playlists": "Playlists",
       "search-error": "Die Spotify-Suche ist fehlgeschlagen. Prüfe die Verbindung zur Spotify Web API in den Einstellungen.",
       "no-results": "Auf Spotify wurde nichts gefunden.",
       "tracks-not-shared-short": "Titel von Spotify nicht freigegeben",

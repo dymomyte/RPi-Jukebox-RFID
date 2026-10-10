@@ -12,6 +12,7 @@ import {
 import request from '../../../utils/request';
 import AlbumListItem from './albums/album-list/album-list-item';
 import SongListItem from './albums/song-list/song-list-item';
+import SectionLabel from './section-label';
 
 const SEARCH_TYPES = 'track,album,playlist';
 const SEARCH_DELAY_MS = 400;
@@ -19,12 +20,13 @@ const MIN_QUERY_LENGTH = 2;
 
 // Search results use the library's song and item shapes, so they play and
 // assign to cards like any other library entry
-const toSong = ({ uri, name, artists = [], duration_ms }) => ({
+const toSong = ({ uri, name, artists = [], duration_ms, cover_url }) => ({
   provider: 'spotify',
   file: uri,
   title: name,
   artist: artists.join(', '),
   duration: duration_ms == null ? undefined : duration_ms / 1000,
+  cover_url,
 });
 
 const toItem = ({ uri, name, artists = [], cover_url, tracks_available }) => ({
@@ -42,11 +44,9 @@ const groupResults = (results) => ({
   playlists: results.filter(({ type }) => type === 'playlist').map(toItem),
 });
 
-const Section = ({ title, children }) => (
+const Section = ({ kind, title, children }) => (
   <Box component="section" sx={{ width: '100%' }}>
-    <Typography component="h2" variant="h6" sx={{ paddingX: 1 }}>
-      {title}
-    </Typography>
+    <SectionLabel kind={kind}>{title}</SectionLabel>
     <List sx={{ width: '100%' }}>
       {children}
     </List>
@@ -96,26 +96,27 @@ const SpotifyCatalog = ({ isSelecting, query, registerMusicToCard }) => {
   return (
     <Stack spacing={2} sx={{ width: '100%' }}>
       {tracks.length > 0 &&
-        <Section title={t('library.spotify.songs')}>
+        <Section kind="songs" title={t('library.spotify.songs')}>
           {tracks.map((song) => (
             <SongListItem
               key={song.file}
               isSelecting={isSelecting}
               registerMusicToCard={registerMusicToCard}
+              showCover
               song={song}
             />
           ))}
         </Section>
       }
       {albums.length > 0 &&
-        <Section title={t('library.spotify.albums')}>
+        <Section kind="albums" title={t('library.spotify.albums')}>
           {albums.map((item) => (
             <AlbumListItem key={item.content_uri} view="albums" {...item} />
           ))}
         </Section>
       }
       {playlists.length > 0 &&
-        <Section title={t('library.spotify.playlists')}>
+        <Section kind="playlists" title={t('library.spotify.playlists')}>
           {playlists.map((item) => (
             <AlbumListItem key={item.content_uri} view="playlists" {...item} />
           ))}

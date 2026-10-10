@@ -11,6 +11,7 @@ import request from '../../../../utils/request';
 import { flatByAlbum } from '../../../../utils/utils';
 
 import AlbumList from "./album-list";
+import SectionLabel from '../section-label';
 
 const Albums = ({
   contentTypes,
@@ -65,9 +66,7 @@ const Albums = ({
     if (isLoading || error || !visibleAlbums.length) return null;
     return (
       <Box component="section" sx={{ width: '100%' }}>
-        <Typography component="h2" variant="h6" sx={{ paddingX: 1 }}>
-          {title}
-        </Typography>
+        <SectionLabel kind="library">{title}</SectionLabel>
         <AlbumList albums={visibleAlbums} musicFilter={musicFilter} view={view} />
       </Box>
     );
