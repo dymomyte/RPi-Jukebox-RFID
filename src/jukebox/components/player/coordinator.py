@@ -346,6 +346,13 @@ class PlayerCoordinator:
             return result
 
     @plugs.tag
+    def list_library_songs(self, provider=None):
+        return self._call_named(
+            self._content_backend_name(provider),
+            'list_library_songs',
+        )
+
+    @plugs.tag
     def list_songs_by_artist_and_album(
             self,
             albumartist,

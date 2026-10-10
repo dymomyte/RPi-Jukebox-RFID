@@ -29,6 +29,11 @@ const commands = {
     plugin: 'ctrl',
     method: 'list_library_items',
   },
+  librarySongs: {
+    _package: 'player',
+    plugin: 'ctrl',
+    method: 'list_library_songs',
+  },
   songList: {
     _package: 'player',
     plugin: 'ctrl',

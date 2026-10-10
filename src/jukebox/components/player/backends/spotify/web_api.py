@@ -25,7 +25,7 @@ from . import uri_utils
 
 logger = logging.getLogger('jb.spotify.webapi')
 
-#: OAuth scopes: read access to the user's playlists and saved albums
+#: OAuth scopes: read access to the user's playlists, saved albums and Liked Songs
 SCOPE = 'playlist-read-private playlist-read-collaborative user-library-read'
 
 #: Spotify caps the search 'limit' at 10 for Development Mode apps
@@ -193,6 +193,16 @@ class SpotifyWebApi:
             shape_album_item(entry['album'])
             for entry in self._collect(self._client.current_user_saved_albums(limit=_PAGE_SIZE))
             if entry.get('album')
+        ])
+
+    def list_saved_tracks(self) -> list:
+        """Return the user's Liked Songs as song entries."""
+        if not self._ready('saved tracks'):
+            return []
+        return self._cached('songs', lambda: [
+            shape_song(entry['track'])
+            for entry in self._collect(self._client.current_user_saved_tracks(limit=_PAGE_SIZE))
+            if entry.get('track')
         ])
 
     def list_tracks(self, content_uri: str) -> list:

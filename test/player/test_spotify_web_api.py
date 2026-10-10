@@ -124,6 +124,19 @@ def test_listings_follow_pages_up_to_limit(monkeypatch):
     client.next.assert_called_once_with(page)
 
 
+def test_saved_tracks_are_listed_as_songs():
+    client = Mock()
+    client.current_user_saved_tracks.return_value = {
+        'items': [{'added_at': 'x', 'track': TRACK}, {'added_at': 'y', 'track': None}],
+        'next': None,
+    }
+
+    songs = connected_api(client).list_saved_tracks()
+
+    client.current_user_saved_tracks.assert_called_once_with(limit=web_api._PAGE_SIZE)
+    assert songs == [web_api.shape_song(TRACK)]
+
+
 def test_unlistable_content_raises():
     with pytest.raises(ValueError, match='Cannot list tracks'):
         connected_api(Mock()).list_tracks('spotify:track:T')
@@ -133,6 +146,7 @@ def test_unauthorized_api_returns_empty_results():
     api = SpotifyWebApi(client_id=None)
     assert api.is_connected() is False
     assert api.list_playlists() == []
+    assert api.list_saved_tracks() == []
     assert api.list_tracks('spotify:album:A') == []
     assert api.search('query') == []
     assert api.get_song('spotify:track:T') == {}

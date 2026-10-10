@@ -3,7 +3,7 @@
 The Jukebox can play Spotify tracks, albums and playlists from a card swipe or the Web App,
 alongside the local music library. Playback is handled by
 [go-librespot](https://github.com/devgianlu/go-librespot), controlled through its local REST API.
-Browsing your playlists and albums and searching the Spotify catalog in the Web App use the
+Browsing your playlists, albums and Liked Songs and searching the Spotify catalog in the Web App use the
 Spotify Web API.
 
 Spotify is an **optional** player backend. The local music library (MPD) keeps working whether or
@@ -100,6 +100,7 @@ Spotify content is assigned to cards like local music:
 
 * **From the library:** in the Web App library, open the **Spotify** source and select one of your
   playlists or saved albums. Assign it to a card, or assign a single track from its track list.
+  The **Songs** tab lists your Liked Songs; select one to play it or assign it to a card.
 * **By search:** in the Web App library, open the **Spotify** source and search. Besides your
   matching playlists and albums, this finds songs, albums and playlists in the whole Spotify
   catalog. Select a song to play it, or an album or playlist to see its tracks. In the card editor,
@@ -144,7 +145,7 @@ activity.
   of playlists you own or collaborate on. The library marks other playlists with
   *Tracks not shared by Spotify*. They can still be played and assigned to cards.
 * **The Web API needs to be connected again after an update.** The Jukebox requests read access to
-  your playlists and saved albums. A token from an earlier version without these permissions is not
+  your playlists, saved albums and Liked Songs. A token from an earlier version without these permissions is not
   used, so connect again in the settings.
 * **Spotify stops when you log out of SSH.** The service runs as a user service. Enable lingering so
   it keeps running: `sudo loginctl enable-linger $USER`.

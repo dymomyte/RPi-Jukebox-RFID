@@ -312,6 +312,12 @@ class SpotifyBackend:
                     'kind': 'items',
                     'content_types': ['album'],
                 },
+                {
+                    'id': 'songs',
+                    'label': 'Songs',
+                    'kind': 'songs',
+                    'content_types': [],
+                },
             ],
         }
 
@@ -324,6 +330,11 @@ class SpotifyBackend:
         if content_types is None or 'album' in content_types:
             items.extend(self.web_api.list_saved_albums())
         return items
+
+    def list_library_songs(self):
+        if self.web_api is None:
+            return []
+        return self.web_api.list_saved_tracks()
 
     def list_albums(self):
         return self.list_library_items()

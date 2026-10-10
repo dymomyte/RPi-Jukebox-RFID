@@ -329,6 +329,16 @@ def test_library_sources_and_items_are_provider_aware():
     ])
 
 
+def test_library_songs_route_to_the_provider():
+    local = backend_with()
+    streaming = backend_with(list_library_songs=Mock(return_value=[{'file': 'streaming:track:T'}]))
+    coordinator = PlayerCoordinator()
+    coordinator.register_backend('local', local)
+    coordinator.register_backend('streaming', streaming)
+
+    assert coordinator.list_library_songs(provider='streaming') == [{'file': 'streaming:track:T'}]
+
+
 def test_combined_catalog_ignores_unavailable_optional_backend():
     local = backend_with(
         list_library_items=Mock(return_value=[{'provider': 'local'}]),

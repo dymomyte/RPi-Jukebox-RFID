@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import {
   Avatar,
+  Box,
   ListItem,
   ListItemAvatar,
   ListItemButton,
@@ -51,7 +52,16 @@ const SongListItem = ({
       >
         {showCover && settings.show_covers &&
           <ListItemAvatar>
-            <Avatar variant="rounded" alt="Cover" src={cover_url || noCover} />
+            {/* A child image, as Avatar preloads its src and defeats lazy loading in long lists */}
+            <Avatar variant="rounded">
+              <Box
+                component="img"
+                alt="Cover"
+                loading="lazy"
+                src={cover_url || noCover}
+                sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            </Avatar>
           </ListItemAvatar>
         }
         <ListItemText

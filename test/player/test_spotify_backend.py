@@ -273,6 +273,7 @@ def test_library_source_describes_spotify_views():
         'views': [
             {'id': 'playlists', 'label': 'Playlists', 'kind': 'items', 'content_types': ['playlist']},
             {'id': 'albums', 'label': 'Albums', 'kind': 'items', 'content_types': ['album']},
+            {'id': 'songs', 'label': 'Songs', 'kind': 'songs', 'content_types': []},
         ],
     }
 
@@ -287,6 +288,13 @@ def test_library_items_are_filtered_by_content_type():
     assert backend.list_library_items(['album']) == [{'content_type': 'album'}]
     assert backend.list_library_items() == [{'content_type': 'playlist'}, {'content_type': 'album'}]
     assert backend.list_library_items(['folder']) == []
+
+
+def test_library_songs_are_the_liked_songs():
+    web_api = Mock()
+    web_api.list_saved_tracks.return_value = [{'file': 'spotify:track:T'}]
+
+    assert make_backend(web_api=web_api).list_library_songs() == [{'file': 'spotify:track:T'}]
 
 
 def test_catalog_lookups_use_content_uri():
@@ -307,5 +315,6 @@ def test_catalog_lookups_use_content_uri():
 def test_catalog_without_web_api_is_empty():
     backend = make_backend()
     assert backend.list_library_items() == []
+    assert backend.list_library_songs() == []
     assert backend.get_song_by_url('spotify:track:T') == []
     assert backend.get_album_coverart('A', 'B', 'spotify:album:AID') is None

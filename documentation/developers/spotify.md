@@ -44,8 +44,9 @@ Spotify setup cannot keep MPD from loading.
 | `shuffle`, `repeat` | Same options and toggle cycle as MPD, mapped to shuffle/repeat context/track |
 | `playerstatus()` | MPD-shaped dict: `state`, `songid`, `file`, `title`, `artist`, `album`, `elapsed`/`duration` in seconds, `random`/`repeat`/`single`, `cover_url`, `provider` |
 | `set_active(active)` | Status is polled continuously but published only while active |
-| `library_source()` | Source `spotify` with `playlists` and `albums` views (`kind: items`) |
+| `library_source()` | Source `spotify` with `playlists` and `albums` views (`kind: items`) and a `songs` view (`kind: songs`) |
 | `list_library_items(content_types)` | The user's playlists and saved albums; playlists carry `tracks_available` |
+| `list_library_songs()` | The user's Liked Songs as song entries |
 | `list_songs_by_artist_and_album(..., content_uri)`, `get_song_by_url` | Track listings and lookup through the Web API |
 | `get_album_coverart`, `get_single_coverart` | Remote cover URLs from the Web API |
 

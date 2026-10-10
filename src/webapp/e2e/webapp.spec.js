@@ -169,6 +169,12 @@ async function mockBackend(
               kind: 'items',
               content_types: ['album'],
             },
+            {
+              id: 'songs',
+              label: 'Songs',
+              kind: 'songs',
+              content_types: [],
+            },
           ],
         }] : []),
         ...(streamingLibrary ? [{
@@ -227,6 +233,26 @@ async function mockBackend(
     }
     if (key === 'list_songs_by_artist_and_album' && payload.kwargs.content_uri === 'spotify:playlist:theirs') {
       result = [];
+    }
+    if (key === 'list_library_songs' && payload.kwargs.provider === 'spotify') {
+      result = [
+        {
+          artist: 'The Cranberries',
+          cover_url: '/cover-cache/test-cover.png',
+          duration: 271,
+          file: 'spotify:track:dreams',
+          provider: 'spotify',
+          title: 'Dreams',
+        },
+        {
+          artist: 'BØRNS',
+          cover_url: null,
+          duration: 218,
+          file: 'spotify:track:electric',
+          provider: 'spotify',
+          title: 'Electric Love',
+        },
+      ];
     }
     if (key === 'list_library_items') {
       const localItems = rpcResults.list_albums.flatMap(entry => (
@@ -618,6 +644,31 @@ test('translations load from a URL that changes with their content', async ({ pa
   await expect(page.getByRole('link', { name: 'Library' })).toBeVisible();
   // Regional variants like en-US don't exist and are not requested
   expect(localeRequests).toEqual([expect.stringMatching(/^\/locales\/en\/translation\.json\?v=[0-9a-f]{12}$/)]);
+});
+
+test('Spotify songs tab lists, filters and plays Liked Songs', async ({ page }) => {
+  const consoleErrors = collectConsoleErrors(page);
+  const { rpcCalls } = await mockBackend(page, { showCovers: true, spotify: true });
+  await page.goto('/#/library/spotify/songs');
+
+  await expect(page.getByRole('tab', { name: 'Songs' })).toHaveAttribute('aria-selected', 'true');
+  await expect(
+    page.getByRole('listitem').filter({ hasText: 'Dreams' }).getByRole('img', { name: 'Cover' }),
+  ).toHaveAttribute('src', '/cover-cache/test-cover.png');
+  await page.getByText('Electric Love').click();
+  await expect.poll(() => (
+    rpcCalls.find(call => call.method === 'play_single')?.kwargs
+  )).toEqual({ song_url: 'spotify:track:electric', provider: 'spotify' });
+
+  await page.getByRole('button', { name: 'Show search' }).click();
+  await page.getByRole('textbox', { name: 'Search your library and Spotify' }).fill('cranberries');
+  await expect(page.getByRole('heading', { name: 'Your library' })).toBeVisible();
+  await expect(page.getByText('Dreams')).toBeVisible();
+  await expect(page.getByText('Electric Love')).toHaveCount(0);
+  await expect.poll(() => (
+    rpcCalls.find(call => call.method === 'search')?.kwargs.query
+  )).toBe('cranberries');
+  expect(consoleErrors).toEqual([]);
 });
 
 test('Spotify playlists without shared tracks can still be played', async ({ page }) => {

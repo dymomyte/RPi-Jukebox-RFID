@@ -19,6 +19,7 @@ import Albums from './albums';
 import LibraryOverview from './overview';
 import SongList from './albums/song-list';
 import Folders from './folders';
+import LibrarySongs from './library-songs';
 import SpotifyCatalog from './spotify-catalog';
 import LibraryHeader from "../library-header";
 import SelectorHeader from "../selector-header";
@@ -80,22 +81,33 @@ const LibrarySourceView = ({
 
   // Searching the Spotify source also searches the Spotify catalog
   const searchesCatalog = provider === 'spotify' && musicFilter.trim();
-  const albums = (
-    <Albums
-      contentTypes={sourceView.content_types}
-      isSelecting={isSelecting}
-      musicFilter={musicFilter}
-      provider={provider}
-      title={searchesCatalog ? t('library.spotify.library') : undefined}
-      view={view}
-    />
-  );
+  const libraryTitle = searchesCatalog ? t('library.spotify.library') : undefined;
+  const library = sourceView.kind === 'songs'
+    ? (
+      <LibrarySongs
+        isSelecting={isSelecting}
+        musicFilter={musicFilter}
+        provider={provider}
+        registerMusicToCard={registerMusicToCard}
+        title={libraryTitle}
+      />
+    )
+    : (
+      <Albums
+        contentTypes={sourceView.content_types}
+        isSelecting={isSelecting}
+        musicFilter={musicFilter}
+        provider={provider}
+        title={libraryTitle}
+        view={view}
+      />
+    );
 
-  if (!searchesCatalog) return albums;
+  if (!searchesCatalog) return library;
 
   return (
     <Stack spacing={2} sx={{ width: '100%' }}>
-      {albums}
+      {library}
       <SpotifyCatalog
         isSelecting={isSelecting}
         query={musicFilter}

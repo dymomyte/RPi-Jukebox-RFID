@@ -63,8 +63,11 @@ Each catalog backend describes its Web App navigation through
 ```
 
 Use `kind: items` for catalog lists rendered with the shared item and track
-views. The built-in local backend also uses `kind: folders` for file
-management.
+views. Use `kind: songs` for a flat list of songs, such as saved tracks; the
+Web App loads it with `list_library_songs(provider)`, which calls the backend's
+`list_library_songs()` and expects song entries as returned by
+`list_songs_by_artist_and_album`. The built-in local backend also uses
+`kind: folders` for file management.
 
 Implement `list_library_items(content_types=None)` and return entries in this
 shape:
