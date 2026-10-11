@@ -69,9 +69,12 @@ const SpotifySearchResult = ({ result, onSelect }) => {
             <AlbumIcon />
           </Avatar>
         </ListItemAvatar>
+        {/* No intrinsic width: long names would otherwise widen the whole card, which
+            clips the type chip. The text fills the row and truncates instead. */}
         <ListItemText
           primary={name}
           secondary={secondary}
+          sx={{ minWidth: 0, width: 0 }}
           slotProps={{
             primary: { noWrap: true },
             secondary: { noWrap: true },

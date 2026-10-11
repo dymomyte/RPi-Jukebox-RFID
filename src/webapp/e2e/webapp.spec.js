@@ -648,6 +648,46 @@ test('Spotify search assigns provider-aware album cards', async ({ page }) => {
   expect(consoleErrors).toEqual([]);
 });
 
+test('Spotify search results keep their type chips in view', async ({ page }) => {
+  await mockBackend(page, { spotify: true });
+  const longText = 'Julia Donaldson Sings the Gruffalo and Other Favourite Picture Book Songs '.repeat(3);
+  await page.route('**/api/v1/rpc', async route => {
+    const payload = route.request().postDataJSON();
+    if (payload.plugin !== 'spotify' || payload.method !== 'search') {
+      await route.fallback();
+      return;
+    }
+    await route.fulfill({
+      body: JSON.stringify({
+        id: payload.id,
+        result: [{
+          album: longText,
+          artists: ['Julia Donaldson', 'The Gruffalo & Friends'],
+          cover_url: null,
+          duration_ms: 180000,
+          name: `The Gruffalo ${longText}`,
+          type: 'track',
+          uri: 'spotify:track:gruffalo',
+        }],
+      }),
+      contentType: 'application/json',
+    });
+  });
+  await page.goto('/#/cards/0001234567/edit');
+
+  await page.getByLabel('Actions').selectOption('play_music');
+  await page.getByRole('textbox', { name: 'Search Spotify' }).fill('gruffalo');
+  await page.keyboard.press('Enter');
+
+  const chip = page.getByRole('button', { name: /^The Gruffalo/ }).getByText('Track', { exact: true });
+  await expect(chip).toBeVisible();
+  // Long names are truncated instead of widening the card, which clips what sticks out
+  const card = page.locator('.MuiPaper-root').filter({ has: chip }).last();
+  const [chipBox, cardBox] = await Promise.all([chip.boundingBox(), card.boundingBox()]);
+  expect(chipBox.x + chipBox.width).toBeLessThanOrEqual(cardBox.x + cardBox.width);
+  expect(await card.evaluate(el => el.scrollWidth - el.clientWidth)).toBe(0);
+});
+
 test('Spotify library search finds songs, albums and playlists', async ({ page }) => {
   const consoleErrors = collectConsoleErrors(page);
   const { rpcCalls } = await mockBackend(page, { showCovers: true, spotify: true });
