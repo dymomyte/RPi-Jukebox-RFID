@@ -56,6 +56,7 @@ def test_rejects_invalid_backend_registrations():
         ('prev', (), ()),
         ('next', (), ()),
         ('seek', (23,), (23,)),
+        ('seek_relative', (-10,), (-10,)),
         ('rewind', (), ()),
         ('replay', (), ()),
         ('toggle', (), ()),
@@ -99,6 +100,42 @@ def test_delegates_existing_player_contract(
 
     assert result is sentinel.result
     backend_method.assert_called_once_with(*backend_args)
+
+
+@pytest.mark.parametrize(
+    ('status', 'expected'),
+    [
+        ({'state': 'play', 'elapsed': '42.500'}, 'seek'),
+        ({'state': 'pause', 'elapsed': '3.100'}, 'seek'),
+        ({'state': 'play', 'elapsed': '3.000'}, 'prev'),
+        ({'state': 'play'}, 'prev'),
+        ({'state': 'stop', 'elapsed': '42.500'}, 'prev'),
+        (None, 'prev'),
+    ],
+)
+def test_prev_or_restart_restarts_song_after_threshold(status, expected):
+    backend = backend_with(playerstatus=Mock(return_value=status), seek=Mock(), prev=Mock())
+    coordinator = PlayerCoordinator()
+    coordinator.register_backend('mpd', backend)
+
+    coordinator.prev_or_restart()
+
+    if expected == 'seek':
+        backend.seek.assert_called_once_with(0)
+        backend.prev.assert_not_called()
+    else:
+        backend.prev.assert_called_once_with()
+        backend.seek.assert_not_called()
+
+
+def test_prev_or_restart_threshold_is_configurable():
+    backend = backend_with(playerstatus=Mock(return_value={'state': 'play', 'elapsed': '8'}), seek=Mock(), prev=Mock())
+    coordinator = PlayerCoordinator()
+    coordinator.register_backend('mpd', backend)
+
+    coordinator.prev_or_restart(threshold=10)
+
+    backend.prev.assert_called_once_with()
 
 
 def test_switch_stops_old_backend_before_new_content_starts():
