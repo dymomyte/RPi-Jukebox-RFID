@@ -23,17 +23,31 @@ We recommend to use at least a Pi 3 or Pi Zero 2 for development. While this har
 
 1. Follow the [installation preperation](../builders/installation.md#install-raspberry-pi-os-lite) steps
 1. [Install](../builders/installation.md#development) your feature/fork branch of the Jukebox software. The official repository will be set as `upstream`.
-1. If neccessary [build the Web App](./webapp.md) locally
+1. Wait for the commit's [exact CI bundle](./webapp.md#ci-bundles) before installing it on the Raspberry Pi.
 
 ## Develop on local machine
 
 The jukebox also runs on any Linux machine. The Raspberry Pi specific stuff will not work of course. That is no issue depending our your development area. USB RFID Readers, however, will work. You will have to install and configure [MPD (Music Player Daemon)](https://www.musicpd.org/).
 
-In addition to the `requirements.txt`, you will this dependency. On the Raspberry PI, the latest stable release of ZMQ does not support WebSockets. We need to compile the latest version from Github, which is taken care of by the installation script. For regular machines, the normal package can be installed:
+Install the runtime and development dependencies from `requirements-dev.txt`:
 
 ``` bash
-pip install pyzmq
+pip install --upgrade setuptools wheel
+pip install -r requirements-dev.txt
 ```
+
+`requirements-dev.txt` installs PyZMQ from a binary wheel. If a wheel is not
+available for a development system, install its `libzmq3-dev` package and
+build only the Python binding against that system library:
+
+``` bash
+env -u ZMQ_DRAFT_API -u ZMQ_PREFIX \
+  PYZMQ_NO_BUNDLE=ON pip install --no-binary=pyzmq pyzmq
+```
+
+`PYZMQ_NO_BUNDLE=ON` prevents the fallback build from downloading or
+compiling a bundled libzmq. Clearing the legacy variables also keeps draft
+support disabled and lets the build discover the installed system library.
 
 You will have to start Jukebox core application and the WebUI separately. The MPD usually runs as a service.
 

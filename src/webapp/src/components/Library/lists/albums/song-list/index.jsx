@@ -1,0 +1,111 @@
+import { memo, useEffect, useState } from 'react';
+import { useParams, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+
+import {
+  CircularProgress,
+  Grid,
+  List,
+  Typography,
+} from '@mui/material';
+
+import request from '../../../../../utils/request';
+
+import SongListHeader from './song-list-header';
+import SongListHeadline from './song-list-headline';
+import SongListControls from './song-list-controls';
+import SongListItem from './song-list-item';
+
+const SongList = ({
+  isSelecting,
+  provider: providerProperty,
+  registerMusicToCard,
+  view: viewProperty,
+}) => {
+  const { t } = useTranslation();
+  const { artist, album, provider: routeProvider, view: routeView } = useParams();
+  const [searchParams] = useSearchParams();
+  const provider = providerProperty || routeProvider || 'mpd';
+  const view = viewProperty || routeView || 'albums';
+  const contentUri = searchParams.get('content_uri') || undefined;
+  const tracksAvailable = searchParams.get('tracks_available') !== 'false';
+  const [songs, setSongs] = useState([]);
+  const [error, setError] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const getSongList = async () => {
+      setIsLoading(true);
+      const { result, error } = await request(
+        'songList',
+        {
+          album: decodeURIComponent(album),
+          albumartist: decodeURIComponent(artist),
+          content_uri: contentUri,
+          provider,
+        }
+      );
+      setIsLoading(false);
+
+      if(result) {
+        setSongs(result);
+      }
+      if(error) setError(error);
+    }
+
+    getSongList();
+  }, [album, artist, contentUri, provider]);
+
+  return (
+    <Grid container id="song-list" size={12}>
+      <SongListHeader provider={provider} view={view} />
+      <SongListHeadline
+        album={decodeURIComponent(album)}
+        artist={decodeURIComponent(artist)}
+      />
+      <SongListControls
+        album={decodeURIComponent(album)}
+        albumartist={decodeURIComponent(artist)}
+        contentUri={contentUri}
+        disabled={songs.length === 0 && tracksAvailable}
+        isSelecting={isSelecting}
+        provider={provider}
+        registerMusicToCard={registerMusicToCard}
+      />
+      <Grid
+        container
+        size={12}
+        spacing={1}
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          marginTop: '0'
+        }}
+      >
+        {isLoading
+          ? <CircularProgress />
+          : <List sx={{ width: '100%' }}>
+              {songs.map(song =>
+                <SongListItem
+                  key={song.file || song.track}
+                  song={song}
+                  isSelecting={isSelecting}
+                  registerMusicToCard={registerMusicToCard}
+                />
+              )}
+            </List>
+        }
+        {!isLoading && !tracksAvailable && songs.length === 0 &&
+          <Typography sx={{ padding: '0 16px' }}>
+            {t('library.spotify.tracks-not-shared')}
+          </Typography>
+        }
+        {error &&
+          <Typography>{`${t('library.albums.no-songs-in-album')} 🤔`}</Typography>
+        }
+      </Grid>
+    </Grid>
+  );
+}
+
+export default memo(SongList);

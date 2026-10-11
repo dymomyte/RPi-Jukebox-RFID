@@ -19,7 +19,6 @@ The local copy is kept to reduce unnecessary syncing.
 import logging
 import subprocess
 import components.player
-import components.playermpd
 import components.rfid.reader
 import components.synchronisation.syncutils as syncutils
 import jukebox.cfghandler
@@ -29,7 +28,7 @@ import os
 import shutil
 
 from components.rfid.reader import RfidCardDetectState
-from components.playermpd.playcontentcallback import PlayCardState
+from components.player.playcontentcallback import PlayCardState
 
 
 logger = logging.getLogger('jb.sync_rfidcards')
@@ -73,7 +72,7 @@ class SyncRfidcards:
                     self._sync_remote_ssh_user = cfg_sync_rfidcards.getn('sync_rfidcards', 'credentials', 'username')
 
             components.rfid.reader.rfid_card_detect_callbacks.register(self._rfid_callback)
-            components.playermpd.play_card_callbacks.register(self._play_card_callback)
+            components.player.play_card_callbacks.register(self._play_card_callback)
         else:
             logger.info("Sync RFID cards deactivated")
 
@@ -259,21 +258,24 @@ class SyncRfidcards:
             _host = self._sync_remote_server
             _port = self._sync_remote_port
 
-            _paths = ['-e', f"ssh -p {_port}", f"{_user}@{_host}:'{src_path}'", dst_path]
+            _mode_params = [
+                '--compress', '--protect-args',
+                '-e', f"ssh -p {_port}",
+                f"{_user}@{_host}:{src_path}", dst_path,
+            ]
 
         else:
-            _paths = [src_path, dst_path]
+            _mode_params = [src_path, dst_path]
 
         _run_params = (['rsync',
-                        '--compress', '--recursive', '--itemize-changes',
+                        '--recursive', '--itemize-changes',
                         '--safe-links', '--times', '--omit-dir-times',
                         '--delete', '--prune-empty-dirs',
                         '--exclude=folder.conf',  # exclude if existing from v2.x
                         '--exclude=.*', '--exclude=.*/', '--exclude=@*/', '--cvs-exclude'
-                        ] + _paths)
+                        ] + _mode_params)
 
         _runresult = subprocess.run(_run_params, shell=False, check=False, capture_output=True, text=True)
-
         if _runresult.returncode == 0 and _runresult.stdout != '':
             logger.debug(f"Synced:\n{_runresult.stdout}")
             _files_synced = True

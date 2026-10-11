@@ -13,22 +13,28 @@
 # What it does (idempotent - safe to re-run):
 #   1. Detects the Pi architecture and downloads a pinned go-librespot release binary.
 #   2. Installs the binary to ~/.local/bin/go-librespot.
-#   3. Writes a go-librespot config.yml (PulseAudio backend, REST API on port 3678,
-#      credential persistence) into ~/.config/go-librespot/.
+#   3. Writes a go-librespot config.yml (ALSA default device -> PipeWire, REST API on
+#      port 3678, credential persistence) into ~/.config/go-librespot/.
 #   4. Installs and enables a systemd *user* service `go-librespot.service`
 #      (consistent with how the Jukebox runs MPD and the core daemon as user services,
-#      so go-librespot shares the user's PulseAudio session and the same sink the
+#      so go-librespot shares the user's PipeWire session and the same sink the
 #      jukebox uses).
-#   5. Guides the user through the one-time Spotify device authentication.
+#   5. Installs the backend's Python requirements (spotipy) into the Jukebox venv.
+#   6. Enables the Spotify player backend in the Jukebox configuration and optionally
+#      connects the Spotify Web API (src/jukebox/run_register_spotify.py).
+#   7. Guides the user through the one-time Spotify device authentication.
 #
 # NOTE: A Spotify *Premium* account is required. go-librespot only supports
 # OAuth / Zeroconf login - username/password auth no longer exists.
 #
 # For the full user guide see documentation/builders/components/spotify.md
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+
 # Source shared helpers (get_architecture, download_from_url, is_service_enabled, ...)
 # We deliberately reuse the installer helpers instead of duplicating arch detection.
-source ../includes/02_helpers.sh
+source "${PROJECT_ROOT}/installation/includes/02_helpers.sh"
 
 # -----------------------------------------------------------------------------
 # Pinned versions / locations  (bump GO_LIBRESPOT_VERSION here to update)
@@ -38,7 +44,7 @@ source ../includes/02_helpers.sh
 GO_LIBRESPOT_VERSION="v0.7.4"
 GO_LIBRESPOT_REPO="https://github.com/devgianlu/go-librespot"
 
-# go-librespot REST API: host and port the Jukebox `spotify` component talks to.
+# go-librespot REST API: host and port the Jukebox Spotify player backend talks to.
 # Keep in sync with the `spotify:` block in jukebox.yaml (host/port).
 GO_LIBRESPOT_API_HOST="localhost"
 GO_LIBRESPOT_API_PORT="3678"
@@ -49,6 +55,8 @@ GO_LIBRESPOT_DEVICE_NAME="Phoniebox"
 # Install locations (all in the current user's home - go-librespot runs as a user service).
 INSTALL_BIN_DIR="${HOME}/.local/bin"
 INSTALL_BIN_PATH="${INSTALL_BIN_DIR}/go-librespot"
+# go-librespot has no --version flag, so the installed release is recorded here.
+INSTALL_VERSION_PATH="${INSTALL_BIN_DIR}/.go-librespot.version"
 CONFIG_DIR="${HOME}/.config/go-librespot"
 CONFIG_PATH="${CONFIG_DIR}/config.yml"
 SYSTEMD_USER_DIR="${HOME}/.config/systemd/user"
@@ -64,6 +72,8 @@ script_name=$(basename "$0")
 log_info() { echo "[setup_spotify] $1"; }
 log_err() { echo "[setup_spotify] ERROR: $1" >&2; }
 die() { log_err "$1"; exit 1; }
+# Used by the shared helpers (e.g. download_from_url)
+exit_on_error() { die "$1"; }
 
 # -----------------------------------------------------------------------------
 # Map the project architecture name to a go-librespot release asset.
@@ -102,8 +112,7 @@ install_binary() {
 
     if [ -x "${INSTALL_BIN_PATH}" ]; then
         local installed_version
-        # `go-librespot --version` prints something like "go-librespot v0.7.4 ..."
-        installed_version=$("${INSTALL_BIN_PATH}" --version 2>/dev/null | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -n1)
+        installed_version=$(cat "${INSTALL_VERSION_PATH}" 2>/dev/null)
         if [ "${installed_version}" = "${GO_LIBRESPOT_VERSION}" ]; then
             log_info "go-librespot ${GO_LIBRESPOT_VERSION} already installed - skipping download."
             return 0
@@ -111,7 +120,8 @@ install_binary() {
         log_info "Replacing go-librespot ${installed_version:-unknown} with ${GO_LIBRESPOT_VERSION}."
     fi
 
-    asset=$(get_asset_name)
+    # die only leaves the command substitution, so stop here on an unsupported architecture
+    asset=$(get_asset_name) || exit 1
     download_url="${GO_LIBRESPOT_REPO}/releases/download/${GO_LIBRESPOT_VERSION}/${asset}"
     tmp_dir=$(mktemp -d)
 
@@ -127,6 +137,7 @@ install_binary() {
 
     mkdir -p "${INSTALL_BIN_DIR}"
     install -m 755 "${extracted_bin}" "${INSTALL_BIN_PATH}"
+    echo "${GO_LIBRESPOT_VERSION}" > "${INSTALL_VERSION_PATH}"
     rm -rf "${tmp_dir}"
 
     log_info "Installed go-librespot ${GO_LIBRESPOT_VERSION}."
@@ -136,13 +147,12 @@ install_binary() {
 # Write the go-librespot config.yml.
 #
 # Config keys verified against go-librespot's config_schema.json / README:
-#   - audio_backend: alsa + audio_device: pulse -> routes audio through ALSA's
-#       "pulse" PCM into the user's PulseAudio session (the SAME path MPD uses).
-#       Spotify therefore plays out of the same sink/speakers as the local MPD
-#       library and respects the jukebox volume control. The native 'pulseaudio'
-#       backend is NOT used: the release binary ships without libpulse, so it
-#       hangs on play; the ALSA backend (libasound is linked) is the reliable
-#       route on a Phoniebox where the ALSA "pulse" plugin is configured.
+#   - audio_backend: alsa + audio_device: default -> pipewire-alsa routes ALSA's
+#       default device into the user's PipeWire session, the same path the
+#       Jukebox uses for jingles (alsawave.device: default). Spotify therefore
+#       plays out of the same sink/speakers as the local MPD library and respects
+#       the jukebox volume control. The native 'pulseaudio' backend is NOT used:
+#       the release binary ships without libpulse, so it hangs on play.
 #   - server.enabled/address/port -> the local REST API the Jukebox drives.
 #   - credentials.type: zeroconf -> headless-friendly login: pick the box from
 #       the Spotify app's device list (Spotify Connect). persist_credentials
@@ -171,16 +181,14 @@ write_config() {
 device_name: ${GO_LIBRESPOT_DEVICE_NAME}
 device_type: speaker
 
-# Route audio through ALSA's "pulse" PCM -- the same path MPD uses (see
-# ~/.config/mpd/mpd.conf, device "pulse"). The go-librespot release binary is
-# built WITHOUT libpulse, so its native 'pulseaudio' backend cannot connect and
-# hangs on the first play. The ALSA backend (libasound IS linked) via the
-# "pulse" device routes into the same PulseAudio sink/volume as the rest of the
-# Jukebox, so Spotify shares the speakers and volume with the local library.
+# Route audio through ALSA's default device, which pipewire-alsa maps into the
+# PipeWire session -- the same sink and volume as the rest of the Jukebox.
+# The go-librespot release binary is built WITHOUT libpulse, so its native
+# 'pulseaudio' backend cannot connect and hangs on the first play.
 audio_backend: alsa
-audio_device: pulse
+audio_device: default
 
-# Local REST API the Jukebox 'spotify' component controls.
+# Local REST API the Jukebox Spotify player backend controls.
 server:
   enabled: true
   address: ${GO_LIBRESPOT_API_HOST}
@@ -203,7 +211,7 @@ EOF
 # Install and enable the systemd *user* service.
 # A user service (rather than a system service) is used on purpose: that is how
 # the Jukebox runs MPD and the core daemon, and it ensures go-librespot runs
-# inside the user's PulseAudio session.
+# inside the user's PipeWire session.
 # Idempotent: overwriting the unit file and re-enabling is harmless.
 # -----------------------------------------------------------------------------
 install_service() {
@@ -213,11 +221,16 @@ install_service() {
     cat > "${SERVICE_PATH}" <<EOF
 [Unit]
 Description=go-librespot Spotify backend for RPi-Jukebox-RFID
-# PulseAudio provides the audio sink we route Spotify into.
-After=network-online.target pulseaudio.service sound.target
+# PipeWire provides the audio sink we route Spotify into.
+After=network-online.target pipewire.service pipewire-pulse.service sound.target
 Wants=network-online.target
 
 [Service]
+# Without an RTC the clock is wrong until NTP syncs. go-librespot then fails the
+# TLS connection to Spotify and its API stops responding, so wait for the sync
+# (bounded, so an offline box still starts).
+ExecStartPre=-/bin/sh -c 'for i in \$\$(seq 60); do [ "\$\$(timedatectl show -p NTPSynchronized --value)" = yes ] && exit 0; sleep 2; done'
+TimeoutStartSec=180
 ExecStart=${INSTALL_BIN_PATH} --config_dir ${CONFIG_DIR}
 Restart=always
 RestartSec=5
@@ -239,6 +252,40 @@ EOF
         log_info "Could not enable linger automatically - run 'sudo loginctl enable-linger \$USER' if Spotify stops when you log out."
 
     log_info "Service ${SERVICE_NAME} enabled and started."
+}
+
+# -----------------------------------------------------------------------------
+# Install the backend's Python requirements (spotipy for the Web API) into the
+# Jukebox virtual environment.
+# -----------------------------------------------------------------------------
+install_python_requirements() {
+    log_info "Installing Python requirements of the Spotify backend ..."
+    # shellcheck disable=SC1091
+    source "${PROJECT_ROOT}/.venv/bin/activate" || die "Failed to activate the Jukebox virtual environment."
+    pip install --no-cache-dir -r "${PROJECT_ROOT}/src/jukebox/components/player/backends/spotify/requirements.txt" \
+        || die "Failed to install the Python requirements."
+}
+
+# -----------------------------------------------------------------------------
+# Enable the backend in jukebox.yaml and optionally connect the Spotify Web API.
+# The Jukebox daemon must not run while its configuration is changed, so it is
+# stopped here and started again afterwards if it was running.
+# -----------------------------------------------------------------------------
+register_backend() {
+    local daemon_was_active=false
+    if systemctl --user is-active --quiet jukebox-daemon; then
+        daemon_was_active=true
+        log_info "Stopping jukebox-daemon to update its configuration ..."
+        systemctl --user stop jukebox-daemon
+    fi
+
+    (cd "${PROJECT_ROOT}/src/jukebox" && python run_register_spotify.py "$@") \
+        || log_err "Registering the Spotify backend failed. Re-run: cd src/jukebox && python run_register_spotify.py"
+
+    if [ "${daemon_was_active}" = true ]; then
+        log_info "Starting jukebox-daemon ..."
+        systemctl --user start jukebox-daemon
+    fi
 }
 
 # -----------------------------------------------------------------------------
@@ -272,10 +319,11 @@ Verify the REST API is up:
 
 Check the service / logs:
     systemctl --user status ${SERVICE_NAME}
-    journalctl --user -u ${SERVICE_NAME} -f
+    journalctl --user-unit ${SERVICE_NAME} -f
 
-For Web API search/metadata (Spotify Developer app credentials) and linking
-cards to tracks, see documentation/builders/components/spotify.md
+Spotify playlists and albums appear in the Web App library once the
+Spotify Web API is connected (here or in the Web App settings).
+See documentation/builders/components/spotify.md
 ------------------------------------------------------------------------
 EOF
 }
@@ -297,10 +345,12 @@ verify_install() {
 
 usage() {
     cat <<EOF
-Usage: ./${script_name}
+Usage: ./${script_name} [run_register_spotify.py options]
 
-Installs and configures the go-librespot Spotify backend (pinned ${GO_LIBRESPOT_VERSION}).
-Run with no arguments. The script is idempotent and can be re-run to update.
+Installs and configures the go-librespot Spotify backend (pinned ${GO_LIBRESPOT_VERSION})
+and enables it in the Jukebox configuration. Options such as --client-id or
+--skip-web-api are passed to src/jukebox/run_register_spotify.py.
+The script is idempotent and can be re-run to update.
 EOF
 }
 
@@ -314,6 +364,8 @@ main() {
     install_binary
     write_config
     install_service
+    install_python_requirements
+    register_backend "$@"
     verify_install
     print_auth_instructions
     log_info "Done."

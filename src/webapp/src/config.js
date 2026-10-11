@@ -1,9 +1,5 @@
-const HOST = (window.location.hostname === 'localhost') ?
-  '0.0.0.0' :
-  window.location.hostname;
-
-const REQRES_ENDPOINT = `ws://${HOST}:5556`;
-const PUBSUB_ENDPOINT = `ws://${HOST}:5557`;
+const REQRES_ENDPOINT = '/api/v1/rpc';
+const PUBSUB_ENDPOINT = '/api/v1/events';
 
 const SUBSCRIPTIONS = [
   'batt_status',
@@ -14,8 +10,11 @@ const SUBSCRIPTIONS = [
   'host.temperature.cpu',
   'playerstatus',
   'rfid.card_id',
-  'spotify.status',
   'spotify.auth_status',
+  'timers.timer_fade_volume',
+  'timers.timer_idle_shutdown',
+  'timers.timer_shutdown',
+  'timers.timer_stop_player',
   'volume.level',
 ];
 
@@ -76,13 +75,6 @@ const JUKEBOX_ACTIONS_MAP = {
     commands: {
       sync_rfidcards_all: {},
       sync_rfidcards_change_on_rfid_scan: {},
-    }
-  },
-
-  // Spotify
-  spotify: {
-    commands: {
-      play_spotify: {},
     }
   },
 }

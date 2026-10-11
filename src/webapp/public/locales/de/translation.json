@@ -2,6 +2,7 @@
   "general": {
     "buttons": {
       "cancel": "Abbrechen",
+      "close": "Schließen",
       "delete": "Löschen",
       "save": "Speichern"
     },
@@ -61,7 +62,19 @@
           },
           "button-label": "Musik auswählen",
           "no-music-selected": "Es ist keine Musik ausgewählt.",
-          "loading-song-error": "Während des Ladens des Songs ist ein Fehler aufgetreten."
+          "loading-song-error": "Während des Ladens des Songs ist ein Fehler aufgetreten.",
+          "spotify": {
+            "search-label": "Spotify durchsuchen",
+            "search-error": "Bei der Spotify-Suche ist ein Fehler aufgetreten. Ist die Spotify Web API in den Einstellungen verbunden?",
+            "no-results": "Keine Ergebnisse gefunden.",
+            "types": {
+              "track": "Titel",
+              "album": "Album",
+              "playlist": "Playlist",
+              "show": "Podcast",
+              "audiobook": "Hörbuch"
+            }
+          }
         },
         "audio": {
           "repeat": {
@@ -84,7 +97,8 @@
           }
         },
         "timers": {
-          "description": "Wähle die Anzahl der Minuten nachdem die Aktion ausgeführt werden soll."
+          "description": "Wähle die Anzahl der Minuten nachdem die Aktion ausgeführt werden soll.",
+          "restart": "Laufenden Timer neu starten"
         },
         "synchronisation": {
           "rfidcards": {
@@ -110,7 +124,10 @@
       "no-card-id": "Keine Karten-ID vorhanden"
     },
     "list": {
-      "no-cards-registered": "Es wurden noch keine Karten registriert!"
+      "no-cards-registered": "Es wurden noch keine Karten registriert!",
+      "card": "Karte",
+      "folder": "Ordner",
+      "cover": "Cover"
     },
     "overview": {
       "cards": "Karten",
@@ -127,12 +144,28 @@
   "library": {
     "loading-error": "Die Bibliothek konnte nicht geladen werden.",
     "header": {
+      "sources-label": "Bibliotheksquellen",
+      "views-label": "Bibliotheksansichten",
       "search-hide": "Suche ausblenden",
       "search-show": "Suche einblenden",
       "search-label": "Suche",
-      "toggle-label": "Album- und Ordner-Ansicht",
+      "overview": "Übersicht",
       "albums": "Alben",
-      "folders": "Ordner"
+      "folders": "Ordner",
+      "playlists": "Playlists",
+      "tracks": "Titel",
+      "songs": "Titel",
+      "podcasts": "Podcasts",
+      "audiobooks": "Hörbücher",
+      "search-spotify-label": "Bibliothek und Spotify durchsuchen"
+    },
+    "sources": {
+      "mpd": "Lokal",
+      "spotify": "Spotify"
+    },
+    "overview": {
+      "group": "{{source}}: {{view}}",
+      "show-all": "Alle anzeigen"
     },
     "selector-header": {
       "title": "Wähle ein Album, einen Ordner oder einen Song aus"
@@ -141,7 +174,64 @@
       "no-music": "☝️ Keine Musik vorhanden!",
       "empty-folder": "Dieser Ordner ist leer! 🙈",
       "show-folder-content": "Zeige den Ordnerinhalt an",
-      "back-button-label": "Zurück"
+      "back-button-label": "Zurück",
+      "manager": {
+        "actions-label": "Aktionen für Bibliotheksdateien",
+        "upload": "Hochladen",
+        "upload-files": "Dateien hochladen",
+        "upload-folders": "Ordner hochladen",
+        "create-folder": "Neuer Ordner",
+        "select": "Auswählen",
+        "select-item": "{{name}} auswählen",
+        "delete-selected_one": "{{count}} Element löschen",
+        "delete-selected_other": "{{count}} Elemente löschen",
+        "drop-files": "Dateien oder Ordner hier ablegen, um sie in diesen Ordner hochzuladen.",
+        "read-folder-error": "Der ausgewählte Ordner konnte von diesem Browser nicht gelesen werden.",
+        "create": {
+          "title": "Ordner erstellen",
+          "name": "Ordnername",
+          "confirm": "Erstellen"
+        },
+        "delete": {
+          "title_one": "{{count}} Element löschen?",
+          "title_other": "{{count}} Elemente löschen?",
+          "permanent": "Das Löschen ist endgültig und kann nicht rückgängig gemacht werden.",
+          "folder-warning": "Ausgewählte Ordner sowie alle darin enthaltenen Dateien und Ordner werden gelöscht."
+        },
+        "upload-dialog": {
+          "title": "Dateien und Ordner hochladen",
+          "uploading": "Wird hochgeladen: {{progress}} %",
+          "creating-folder": "Ordner wird erstellt",
+          "folder-created": "Ordner erstellt",
+          "parent-folder-failed": "Der übergeordnete Ordner konnte nicht erstellt werden.",
+          "progress": "Upload-Fortschritt für {{name}}",
+          "cancel-item": "Abbrechen",
+          "retry-item": "Wiederholen",
+          "cancel-all": "Alle abbrechen",
+          "status": {
+            "queued": "Wartet",
+            "complete": "Hochgeladen",
+            "cancelled": "Abgebrochen"
+          }
+        },
+        "errors": {
+          "cancelled": "Der Upload wurde abgebrochen.",
+          "duplicate_name": "Eine Datei oder ein Ordner mit diesem Namen ist bereits vorhanden.",
+          "entry_not_found": "Die ausgewählte Datei oder der Ordner ist nicht mehr vorhanden.",
+          "file_too_large": "Dateien dürfen höchstens 1 GiB groß sein.",
+          "folder_not_found": "Der Zielordner ist nicht mehr vorhanden.",
+          "insufficient_storage": "Für diesen Vorgang ist nicht genügend Speicherplatz vorhanden.",
+          "invalid_file_name": "Der Dateiname ist ungültig.",
+          "invalid_folder_name": "Der Ordnername ist ungültig.",
+          "invalid_path": "Der ausgewählte Pfad liegt außerhalb der Musikbibliothek.",
+          "mpd_update_failed": "Die Dateien wurden geändert, aber die MPD-Bibliothek konnte nicht aktualisiert werden.",
+          "network_error": "Die Verbindung zur Phoniebox ist fehlgeschlagen.",
+          "permission_denied": "Die Phoniebox hat keine Berechtigung für diesen Vorgang.",
+          "request_failed": "Der Bibliotheksvorgang ist fehlgeschlagen.",
+          "storage_error": "Der Speichervorgang ist fehlgeschlagen.",
+          "unsupported_file_type": "Dieser Dateityp wird nicht unterstützt."
+        }
+      }
     },
     "albums": {
       "unknown-album": "Unbekanntes Album",
@@ -151,6 +241,17 @@
       "empty-library": "Deine Bibliothek ist noch leer!",
       "no-songs-in-album": "Komisch, in diesem Album gibt es keine Songs.",
       "assign-to-card": "Dieses Album registrieren"
+    },
+    "spotify": {
+      "library": "Deine Bibliothek",
+      "songs": "Titel",
+      "albums": "Alben",
+      "playlists": "Playlists",
+      "podcasts": "Podcasts",
+      "audiobooks": "Hörbücher",
+      "search-error": "Die Spotify-Suche ist fehlgeschlagen. Prüfe die Verbindung zur Spotify Web API in den Einstellungen.",
+      "no-results": "Auf Spotify wurde nichts gefunden.",
+      "tracks-not-shared": "Spotify gibt die Titel von Playlists, die dir nicht gehören, nicht frei. Du kannst die Playlist trotzdem abspielen oder einer Karte zuweisen."
     }
   },
   "navigation": {
@@ -301,6 +402,35 @@
     },
     "systemcontrols": {
       "title": "Systemsteuerung"
+    },
+    "spotify": {
+      "title": "Spotify",
+      "subheader": "Die Wiedergabe läuft über go-librespot. Verbinde die Spotify Web API, um deine Playlists und Alben zu durchsuchen.",
+      "status": {
+        "go-librespot": "go-librespot",
+        "web-api": "Spotify Web API",
+        "connected": "verbunden",
+        "disconnected": "nicht verbunden"
+      },
+      "client-id": {
+        "title": "Spotify-App",
+        "label": "Client-ID",
+        "configured": "Eine Client-ID ist hinterlegt. Gib eine neue ein, um sie zu ersetzen.",
+        "missing": "Gib die Client-ID deiner Spotify-Developer-App ein.",
+        "save": "Client-ID speichern",
+        "save-success": "Client-ID gespeichert.",
+        "save-error": "Die Client-ID konnte nicht gespeichert werden."
+      },
+      "connect": {
+        "title": "Web-API-Autorisierung",
+        "button": "Spotify verbinden",
+        "paste-instructions": "Nach der Freigabe öffnet dein Browser eine Seite, die mit http://127.0.0.1 beginnt und eventuell nicht lädt. Kopiere die vollständige Adresse und füge sie hier ein.",
+        "redirect-label": "Weiterleitungs-URL",
+        "complete": "Verbindung abschließen",
+        "start-error": "Die Autorisierung konnte nicht gestartet werden. Ist eine Client-ID hinterlegt?",
+        "complete-error": "Die Autorisierung ist fehlgeschlagen. Bitte starte erneut.",
+        "complete-success": "Spotify Web API verbunden."
+      }
     }
   }
 }

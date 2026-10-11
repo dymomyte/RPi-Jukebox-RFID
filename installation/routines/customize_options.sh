@@ -216,18 +216,19 @@ _option_samba() {
   clear_c
   print_c "------------------------- SAMBA -------------------------
 
-Samba is required to conveniently copy files
-to your Phoniebox via a network share.
-If you don't need it, feel free to skip the installation.
-If you are unsure, stick to YES!
+The Web App can upload and manage files in the audio
+library. Samba additionally provides direct network
+access to the complete shared directory, including
+configuration files.
 
-Do you want to install Samba? [Y/n]"
+Do you want to install Samba? [y/N]"
   read -r response
   case "$response" in
-    [nN][oO]|[nN])
-      ENABLE_SAMBA=false
+    [yY][eE][sS]|[yY])
+      ENABLE_SAMBA=true
       ;;
     *)
+      ENABLE_SAMBA=false
       ;;
   esac
   log "ENABLE_SAMBA=${ENABLE_SAMBA}"
@@ -340,36 +341,12 @@ Disable Pi's on-chip audio (headphone / jack output)? [y/N]"
 
 }
 
-_option_webapp_devel_build() {
+_configure_webapp_bundle_download() {
   # Let's detect if we are on the official release branch
   if [[ "$GIT_BRANCH" != "${GIT_BRANCH_RELEASE}" && "$GIT_BRANCH" != "${GIT_BRANCH_DEVELOP}" ]] || [[ "$GIT_USER" != "$GIT_UPSTREAM_USER" ]] || [[ "$CI_RUNNING" == "true" ]] ; then
-    # Unless ENABLE_WEBAPP_PROD_DOWNLOAD is forced to true by user override, do not download a potentially stale build
+    # Development branches use their commit-addressed development bundle.
     if [[ "$ENABLE_WEBAPP_PROD_DOWNLOAD" == "release-only" ]]; then
-      ENABLE_WEBAPP_PROD_DOWNLOAD=false
-    fi
-    if [[ "$ENABLE_WEBAPP_PROD_DOWNLOAD" != true && "$ENABLE_WEBAPP_PROD_DOWNLOAD" != "release-only" ]]; then
-      clear_c
-      print_c "--------------------- WEB APP BUILD ---------------------
-
-You are installing from a non-release branch
-and/or an unofficial repository.
-Therefore a pre-build Web App is not available
-and it needs to be built locally.
-This requires Node to be installed.
-
-If you decline, the lastest pre-build version
-from the official repository will be installed.
-This can lead to incompatibilities.
-
-Do you want to build the Web App? [Y/n]"
-      read -r response
-      case "$response" in
-        [nN][oO]|[nN])
-            ENABLE_WEBAPP_PROD_DOWNLOAD=true
-            ;;
-        *)
-            ;;
-      esac
+      ENABLE_WEBAPP_PROD_DOWNLOAD=true
     fi
   fi
 
@@ -387,12 +364,9 @@ _run_customize_options() {
   _option_samba
   _option_webapp
   if [[ $ENABLE_WEBAPP == true ]] ; then
-    _option_webapp_devel_build
+    _configure_webapp_bundle_download
     _option_kiosk_mode
   fi
-  # Bullseye is currently under active development and should be updated in any case.
-  # Hence, removing the step below as it becomse mandatory
-  # _options_update_raspi_os
 }
 
 customize_options() {

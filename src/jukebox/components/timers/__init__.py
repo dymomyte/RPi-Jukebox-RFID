@@ -6,11 +6,12 @@ import jukebox.cfghandler
 import jukebox.plugs as plugin
 from jukebox.multitimer import GenericTimerClass
 from .idle_shutdown_timer import IdleShutdownTimer
-from .volume_fadeout_shutdown_timer import VolumeFadoutAndShutdown
+from .volume_fadeout_shutdown_timer import VolumeFadeoutAndShutdown
 
 
 logger = logging.getLogger('jb.timers')
 cfg = jukebox.cfghandler.get_handler('jukebox')
+VolumeFadoutAndShutdown = VolumeFadeoutAndShutdown
 
 
 # ---------------------------------------------------------------------------
@@ -31,7 +32,7 @@ def stop_player():
 # ---------------------------------------------------------------------------
 timer_shutdown: GenericTimerClass
 timer_stop_player: GenericTimerClass
-timer_fade_volume: VolumeFadoutAndShutdown
+timer_fade_volume: VolumeFadeoutAndShutdown
 timer_idle_shutdown: IdleShutdownTimer
 
 
@@ -56,7 +57,8 @@ def finalize():
     plugin.register(timer_stop_player, name='timer_stop_player', package=plugin.loaded_as(__name__))
 
     # Volume Fadeout and Shutdown Timer
-    timer_fade_volume = VolumeFadoutAndShutdown(
+    global timer_fade_volume
+    timer_fade_volume = VolumeFadeoutAndShutdown(
         name=f"{plugin.loaded_as(__name__)}.timer_fade_volume"
     )
     plugin.register(timer_fade_volume, name='timer_fade_volume', package=plugin.loaded_as(__name__))
@@ -86,20 +88,11 @@ def finalize():
 @plugin.atexit
 def atexit(**ignored_kwargs):
     global timer_shutdown
-    timer_shutdown.cancel()
     global timer_stop_player
-    timer_stop_player.cancel()
     global timer_fade_volume
-    timer_fade_volume.cancel()
     global timer_idle_shutdown
-    timer_idle_shutdown.cancel()
-    global timer_idle_check
-    timer_idle_check.cancel()
-    ret = [
-        timer_shutdown.timer_thread,
-        timer_stop_player.timer_thread,
-        timer_fade_volume.timer_thread,
-        timer_idle_shutdown.timer_thread,
-        timer_idle_check.timer_thread
-    ]
-    return ret
+    timer_shutdown.close()
+    timer_stop_player.close()
+    timer_fade_volume.close()
+    timer_idle_shutdown.close()
+    return []

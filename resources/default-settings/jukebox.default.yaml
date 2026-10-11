@@ -11,8 +11,7 @@ modules:
     jingle: jingle
     jingle.alsawave: jingle.alsawave
     jingle.jinglemp3: jingle.jinglemp3
-    player: playermpd
-    spotify: spotify
+    player: player.plugin
     cards: rfid.cards
     rfid: rfid.reader
     timers: timers
@@ -30,16 +29,16 @@ pulse:
   toggle_on_connect: true
   # Limit maximum volume range to XX % - can be changed through the UI (for temporary use)
   soft_max_volume: 70
-  # Run the audio configuration tool to configure the pulseaudio sinks
+  # Run the audio configuration tool to configure the audio sinks
   #
   # After startup, the audio output defaults to primary
   # Any Bluetooth device should be the secondary (as it may not always be available directly after boot)
   #
-  # For manual setting of pulseaudio sinks use:
-  # $ pactl list sinks short
+  # For manual inspection of available sinks use:
+  # $ wpctl status
   #
-  # Test sinks with
-  # $ paplay -D sink_name /usr/share/sounds/alsa/Front_Center.wav
+  # Test a sink with its ID from `wpctl status`:
+  # $ pw-play --target=<id> /usr/share/sounds/alsa/Front_Center.wav
   #
   # Parameters:
   # - alias       : user defined alias for better readability
@@ -95,30 +94,32 @@ playermpd:
   # Must be one of: 'none', 'next', 'rewind':
   stopped_next_action: next
 spotify:
-  # Enable the Spotify player backend (requires go-librespot + a Spotify Premium account)
-  enable: true
+  # Register the Spotify player backend (go-librespot). Requires a Spotify Premium account.
+  # Set up go-librespot and enable this with: installation/components/setup_spotify.sh
+  enable: false
   go_librespot:
-    # Host and port of the local go-librespot REST/WebSocket control API
+    # Host and port of the local go-librespot REST API
     host: localhost
     port: 3678
-  # Interval in seconds for polling go-librespot for player status
+  # Interval in seconds for polling go-librespot for the player status
   status_poll_interval: 0.25
+  # Where podcasts and audiobooks remember the episode and position they stopped at
+  resume_file: ../../shared/settings/spotify_resume.json
   web_api:
-    # Enable the Spotify Web API client for search/browse/metadata in the WebUI
-    enable: true
-    # Local redirect port for the OAuth flow.
+    # Local redirect port for the Web API authorization (library browsing, search, cover art).
     # The redirect URI registered in the Spotify app must be http://127.0.0.1:<port>/callback (IP, not localhost)
     redirect_port: 8080
-  # Spotify Web API credentials (client_id/client_secret). Keep secrets out of the main config.
+    token_cache_file: ../../shared/settings/spotify-token.json
+  # Spotify app client id for the Web API. Kept out of the main config.
   credentials_file: ../../shared/settings/spotify.yaml
 rpc:
   tcp_port: 5555
-  websocket_port: 5556
+api:
+  bind_address: 127.0.0.1
+  port: 5556
 publishing:
-  # Ports for the publisher. Setting a port number to 0 disables the port
-  # The WebUI requires the websocket connection
+  # Setting the port number to 0 disables external TCP publishing
   tcp_port: 5558
-  websocket_port: 5557
 rfid:
   reader_config: ../../shared/settings/rfid.yaml
   card_database: ../../shared/settings/cards.yaml
@@ -129,6 +130,7 @@ timers:
   idle_shutdown:
     # If you want the box to shutdown on inactivity automatically, configure timeout_sec with a number of seconds (at least 60).
     # Inactivity is defined as: no music playing, no active SSH sessions, no changes in configs or audio content.
+    # The setting persists across reboots until it is cancelled or set to 0.
     timeout_sec: 0
   # These timers are always disabled after start
   # The following values only give the default values.
@@ -137,9 +139,8 @@ timers:
     default_timeout_sec: 3600
   stop_player:
     default_timeout_sec: 3600
-  volume_fade_out:
-    default_time_per_iteration_sec: 900
-    number_of_steps: 10
+  volume_fadeout:
+    default_timeout_sec: 600
 host:
   # Do not actually execute system shutdown and reboot commands
   debug_mode: false

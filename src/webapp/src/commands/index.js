@@ -19,6 +19,21 @@ const commands = {
     plugin: 'ctrl',
     method: 'list_albums',
   },
+  librarySources: {
+    _package: 'player',
+    plugin: 'ctrl',
+    method: 'list_library_sources',
+  },
+  libraryItems: {
+    _package: 'player',
+    plugin: 'ctrl',
+    method: 'list_library_items',
+  },
+  librarySongs: {
+    _package: 'player',
+    plugin: 'ctrl',
+    method: 'list_library_songs',
+  },
   songList: {
     _package: 'player',
     plugin: 'ctrl',
@@ -28,7 +43,7 @@ const commands = {
     _package: 'player',
     plugin: 'ctrl',
     method: 'get_song_by_url',
-    argKeys: ['song_url']
+    argKeys: ['song_url', 'provider']
   },
   folderList: {
     _package: 'player',
@@ -53,6 +68,42 @@ const commands = {
     method: 'playerstatus'
   },
 
+  playerBackends: {
+    _package: 'player',
+    plugin: 'ctrl',
+    method: 'list_backends',
+  },
+
+  // Spotify account (the player backend itself is controlled through player.ctrl)
+  spotifyAuthStatus: {
+    _package: 'player',
+    plugin: 'spotify',
+    method: 'auth_status',
+  },
+  spotifySetClientId: {
+    _package: 'player',
+    plugin: 'spotify',
+    method: 'set_client_id',
+    argKeys: ['client_id'],
+  },
+  spotifyStartAuth: {
+    _package: 'player',
+    plugin: 'spotify',
+    method: 'start_auth',
+  },
+  spotifyCompleteAuth: {
+    _package: 'player',
+    plugin: 'spotify',
+    method: 'complete_auth',
+    argKeys: ['code_or_url'],
+  },
+  spotifySearch: {
+    _package: 'player',
+    plugin: 'spotify',
+    method: 'search',
+    argKeys: ['query', 'types', 'limit'],
+  },
+
   // Player Actions
   play: {
     _package: 'player',
@@ -63,7 +114,7 @@ const commands = {
     _package: 'player',
     plugin: 'ctrl',
     method: 'play_single',
-    argKeys: ['song_url']
+    argKeys: ['song_url', 'provider']
   },
   play_folder: {
     _package: 'player',
@@ -75,7 +126,7 @@ const commands = {
     _package: 'player',
     plugin: 'ctrl',
     method: 'play_album',
-    argKeys: ['albumartist', 'album']
+    argKeys: ['albumartist', 'album', 'content_uri', 'provider']
   },
   pause: {
     _package: 'player',
@@ -113,68 +164,6 @@ const commands = {
     _package: 'player',
     plugin: 'ctrl',
     method: 'seek',
-  },
-
-  // Spotify
-  play_spotify: {
-    _package: 'spotify',
-    plugin: 'ctrl',
-    method: 'play_spotify',
-    argKeys: ['uri'],
-  },
-  spotifySearch: {
-    _package: 'spotify',
-    plugin: 'search',
-    argKeys: ['query', 'types', 'limit'],
-  },
-  spotifyAuthStatus: {
-    _package: 'spotify',
-    plugin: 'auth_status',
-  },
-  spotifyStartAuth: {
-    _package: 'spotify',
-    plugin: 'start_auth',
-  },
-  spotifyCompleteAuth: {
-    _package: 'spotify',
-    plugin: 'complete_auth',
-    argKeys: ['code_or_url'],
-  },
-  spotifyGetMetadata: {
-    _package: 'spotify',
-    plugin: 'get_metadata',
-    argKeys: ['uri'],
-  },
-  // Spotify transport (home Player routes here when Spotify is the active backend)
-  spotifyPlay: {
-    _package: 'spotify',
-    plugin: 'ctrl',
-    method: 'play',
-  },
-  spotifyPause: {
-    _package: 'spotify',
-    plugin: 'ctrl',
-    method: 'pause',
-  },
-  spotifyNext: {
-    _package: 'spotify',
-    plugin: 'ctrl',
-    method: 'next',
-  },
-  spotifyPrev: {
-    _package: 'spotify',
-    plugin: 'ctrl',
-    method: 'prev',
-  },
-  spotifySeek: {
-    _package: 'spotify',
-    plugin: 'ctrl',
-    method: 'seek',
-  },
-  spotifySetCredentials: {
-    _package: 'spotify',
-    plugin: 'set_credentials',
-    argKeys: ['client_id', 'client_secret'],
   },
 
   // Volume
@@ -242,7 +231,8 @@ const commands = {
     _package: 'timers',
     plugin: 'timer_fade_volume',
     method: 'start',
-    argKeys: ['wait_seconds'],
+    argKeys: ['wait_seconds', 'restart'],
+    argDefaults: { restart: true },
   },
   'timer_shutdown.cancel': {
     _package: 'timers',
@@ -258,7 +248,8 @@ const commands = {
     _package: 'timers',
     plugin: 'timer_shutdown',
     method: 'start',
-    argKeys: ['wait_seconds'],
+    argKeys: ['wait_seconds', 'restart'],
+    argDefaults: { restart: true },
   },
   'timer_stop_player.cancel': {
     _package: 'timers',
@@ -274,7 +265,8 @@ const commands = {
     _package: 'timers',
     plugin: 'timer_stop_player',
     method: 'start',
-    argKeys: ['wait_seconds'],
+    argKeys: ['wait_seconds', 'restart'],
+    argDefaults: { restart: true },
   },
 
 
@@ -292,7 +284,8 @@ const commands = {
     _package: 'timers',
     plugin: 'timer_idle_shutdown',
     method: 'start',
-    argKeys: ['wait_seconds'],
+    argKeys: ['wait_seconds', 'restart'],
+    argDefaults: { restart: true },
   },
 
 

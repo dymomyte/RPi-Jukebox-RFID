@@ -1,98 +1,113 @@
 #!/usr/bin/env python
 """
-Setup tool to register Spotify (Web API) with the Jukebox.
+Setup tool to register the Spotify player backend with the Jukebox.
 
-Run this once on the box to:
+Run this once on the box (``installation/components/setup_spotify.sh`` calls it) to:
 
-1. Store the Spotify application ``client_id`` / ``client_secret`` (secrets file
-   under ``shared/settings/``).
-2. Complete the one-time **Authorization Code + PKCE** login: the tool prints an
-   auth URL, runs a tiny local listener on ``127.0.0.1:<port>`` to catch the
-   redirect, and caches the resulting token (auto-refreshed thereafter by
-   spotipy).
+1. Enable the Spotify backend (``spotify.enable``) in the Jukebox configuration.
+2. Migrate cards of the former ``play_spotify`` alias to ``play_single`` cards
+   with ``provider: spotify``.
+3. Optionally connect the Spotify Web API, which the Web App uses to browse your
+   playlists and albums and to search: store the Spotify app ``client_id`` and
+   complete the one-time **Authorization Code + PKCE** login. The resulting token
+   is cached and refreshed automatically.
 
-This is the dependable headless path; the same flow can also be driven from the
-Web App Settings page.
+The Web API connection can also be set up later from the Web App settings.
 
 > [!NOTE]
 > Requires a Spotify Developer app whose redirect URI is registered as
-> ``http://127.0.0.1:<port>/callback`` (IP, not ``localhost`` -- per the
-> 27 Nov 2025 OAuth migration).
+> ``http://127.0.0.1:<port>/callback`` (IP, not ``localhost``).
 """
 import argparse
 import logging
 import os
-import threading
-from http.server import BaseHTTPRequestHandler, HTTPServer
-from urllib.parse import urlparse, parse_qs
 
 import misc.inputminus as pyil
 import jukebox.cfghandler
 import jukebox.plugs
 jukebox.plugs.ALLOW_DIRECT_IMPORTS = True
 import components.hostif.linux as host  # noqa: E402
-import components.spotify as spotify  # noqa: E402
-from components.spotify.spotify_web_api import SpotifyWebApi  # noqa: E402
+import components.player.spotify_plugin as spotify_plugin  # noqa: E402
 
 # Create logger
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 logconsole = logging.StreamHandler()
 logconsole.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)-8s: %(message)s',
-                                           datefmt='%d.%m.%Y %H:%M:%S'))
+                                          datefmt='%d.%m.%Y %H:%M:%S'))
 logconsole.setLevel(logging.INFO)
 logger.addHandler(logconsole)
 
 cfg = jukebox.cfghandler.get_handler('jukebox')
 
 
-class _RedirectHandler(BaseHTTPRequestHandler):
-    """Single-shot HTTP handler that captures the OAuth redirect ``code``."""
-    captured_url = None
-
-    def do_GET(self):  # noqa: N802 (http.server API)
-        _RedirectHandler.captured_url = self.path
-        self.send_response(200)
-        self.send_header('Content-Type', 'text/html; charset=utf-8')
-        self.end_headers()
-        self.wfile.write(b'<html><body><h2>Spotify authorization received.</h2>'
-                         b'<p>You can close this window and return to the terminal.</p>'
-                         b'</body></html>')
-
-    def log_message(self, *args):
-        # Silence the default stderr logging
-        pass
+def enable_backend(conffile: str):
+    jukebox.cfghandler.load_yaml(cfg, conffile)
+    cfg.setn('spotify', 'enable', value=True)
+    jukebox.cfghandler.write_yaml(cfg, conffile, only_if_changed=True)
+    print(f"Spotify backend enabled in '{conffile}'")
 
 
-def _capture_redirect(port: int, timeout: float = 300.0):
-    """Run a one-shot local listener and return the captured redirect URL.
+def migrate_cards():
+    card_database = spotify_plugin.resolve_path(
+        cfg.getn('rfid', 'card_database', default='../../shared/settings/cards.yaml'))
+    migrated = spotify_plugin.migrate_play_spotify_cards(card_database)
+    if migrated:
+        print(f"Migrated {len(migrated)} 'play_spotify' card(s) to 'play_single': {', '.join(migrated)}")
 
-    :param port: Port to listen on (must match the registered redirect URI)
-    :param timeout: Seconds to wait for the redirect before giving up
-    :return: The full redirect path (incl. query) or None on timeout
-    """
-    server = HTTPServer(('127.0.0.1', port), _RedirectHandler)
-    server.timeout = timeout
-    thread = threading.Thread(target=server.handle_request, daemon=True)
-    thread.start()
-    thread.join(timeout)
-    server.server_close()
-    return _RedirectHandler.captured_url
+
+def connect_web_api(client_id: str):
+    if not client_id:
+        client_id = input("Spotify app client id: ").strip()
+    if not client_id:
+        print("No client id given. Skipping the Web API setup.")
+        return
+    spotify_plugin.write_client_id(client_id)
+
+    web_api = spotify_plugin.create_web_api()
+    auth_url = web_api.start_auth().get('auth_url')
+    if not auth_url:
+        print("\nERROR: Could not build an authorization URL. Is 'spotipy' installed?")
+        print("Install it with: pip install -r components/player/backends/spotify/requirements.txt")
+        return
+
+    print("\n" + "=" * 79)
+    print("Open this URL in a browser on any device and approve the access:\n")
+    print(f"  {auth_url}\n")
+    print(f"Spotify then redirects to {web_api.redirect_uri}?code=...")
+    print("That page may fail to load on your device. Copy its full address from the browser.")
+    print("=" * 79 + "\n")
+    redirect_url = input("Paste the redirect URL (or just the code): ").strip()
+
+    if web_api.complete_auth(redirect_url).get('success'):
+        print(f"\nSpotify Web API authorization successful. Token cached at '{web_api.cache_path}'")
+    else:
+        print("\nSpotify Web API authorization FAILED. Check the log output and try again,")
+        print("or connect later from the Web App settings.")
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__,
-                                     formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--client-id", help="Spotify application client id", default=None)
-    parser.add_argument("--client-secret", help="Spotify application client secret", default=None)
-    parser.add_argument("-p", "--port", type=int, default=8080,
-                        help="Redirect listener port (default: 8080). Must match the "
-                             "redirect URI registered in your Spotify app.")
-    parser.add_argument("-v", "--verbosity", action="store_true", default=False,
-                        help="Increase verbosity to 'DEBUG'")
+    # The default config file relative to this files location and independent of working directory
+    script_path = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
+    cfg_file_default = os.path.abspath(os.path.join(script_path, '../../shared/settings/jukebox.yaml'))
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-c", "--conffile",
+                        help=f"Jukebox configuration file [default: '{cfg_file_default}']",
+                        metavar="FILE", default=cfg_file_default)
+    parser.add_argument("--client-id",
+                        help="Spotify app client id for the Web API (asked for interactively if not given)",
+                        default=None)
+    parser.add_argument("--skip-web-api",
+                        help="Only enable the backend, do not set up the Web API",
+                        action="store_true", default=False)
+    parser.add_argument("-v", "--verbosity",
+                        help="Increase verbosity to 'DEBUG'",
+                        action="store_true", default=False)
     args = parser.parse_args()
 
-    if args.verbosity:
+    if args.verbosity is True:
+        print("Setting logging level to DEBUG.")
         logconsole.setLevel(logging.DEBUG)
 
     if host.is_any_jukebox_service_active():
@@ -102,53 +117,14 @@ def main():
         print("Don't forget to start the service again :-)")
         return
 
-    client_id = args.client_id
-    client_secret = args.client_secret
-    if not client_id:
-        client_id = input("Spotify client_id: ").strip()
-    if not client_secret:
-        client_secret = input("Spotify client_secret (optional for PKCE, press Enter to skip): ").strip()
+    enable_backend(args.conffile)
+    migrate_cards()
 
-    # Persist credentials via the component helper (writes the secrets yaml)
-    spotify.write_credentials(client_id, client_secret or None)
-
-    cache_path = os.path.abspath(os.path.join(
-        os.path.dirname(os.path.realpath(__file__)),
-        '../../shared/settings/spotify-token.json'))
-
-    web_api = SpotifyWebApi(client_id=client_id, client_secret=client_secret or None,
-                            redirect_port=args.port, cache_path=cache_path)
-
-    auth = web_api.start_auth()
-    auth_url = auth.get('auth_url')
-    if not auth_url:
-        print("\nERROR: Could not build an authorization URL. Is 'spotipy' installed?")
-        print("Install component requirements: pip install -r components/spotify/requirements.txt")
+    if args.skip_web_api:
         return
-
-    print("\n" + "=" * 70)
-    print("Open this URL in a browser (on any device that can reach this box):\n")
-    print(f"  {auth_url}\n")
-    print(f"After approving, Spotify redirects to http://127.0.0.1:{args.port}/callback")
-    print("This tool is listening for that redirect now...")
-    print("=" * 70 + "\n")
-
-    redirect_url = _capture_redirect(args.port)
-    if redirect_url is None:
-        print("Timed out waiting for the redirect. You can paste the full redirect URL manually.")
-        redirect_url = input("Paste redirect URL (or just the code): ").strip()
-    else:
-        # Reconstruct a full URL so spotipy can parse the code
-        query = urlparse(redirect_url).query
-        code = parse_qs(query).get('code', [''])[0]
-        redirect_url = code or redirect_url
-
-    result = web_api.complete_auth(redirect_url)
-    if result.get('success'):
-        print("\nSpotify Web API authorization successful. Token cached at:")
-        print(f"  {cache_path}")
-    else:
-        print("\nSpotify Web API authorization FAILED. Check the logs and try again.")
+    if args.client_id or pyil.input_yesno("\nConnect the Spotify Web API now (library browsing and search)?",
+                                          blank=True, prompt_hint=True):
+        connect_web_api(args.client_id)
 
 
 if __name__ == '__main__':

@@ -7,18 +7,18 @@
 
 Before you can install the Phoniebox software, you need to prepare your Raspberry Pi.
 
-This instruction uses the official [Raspberry Pi Imager](https://www.raspberrypi.com/software/). We recommend using the latest [**Legacy Lite**](https://www.raspberrypi.org/software/operating-systems/#raspberry-pi-os-legacy) release image.
+This instruction uses the official [Raspberry Pi Imager](https://www.raspberrypi.com/software/). We recommend using the latest **Raspberry Pi OS Lite** image - Trixie.
 
-### For Raspberry Pi Imager Version >= 2.0.0
+### Raspberry Pi Imager
 
 1. Connect a Micro SD card to your computer (preferable an SD card with high read throughput)
 1. Start the Raspberry Pi Imager
 1. Model: select "No filtering"
-1. OS: select **Raspberry Pi OS (other)** and then **Raspberry Pi OS (Legacy, 32-bit) Lite** (no desktop environment).
+1. OS: select **Raspberry Pi OS (other)** and then **Raspberry Pi OS Lite** (64 bit, 32 bit should also work) - the version without Desktop environment
 1. Storage: Select your Micro SD card (your card will be formatted)
 1. Customize:
     * Hostname: choose hostname for the network (e.g. "phoniebox")
-    * Localization: choose acording to your location
+    * Localization: choose according to your location
     * User: choose a username and a password
     * Wifi: provide your wifi settings
     * Remote: enable SSH with "Use password authentication"
@@ -26,107 +26,6 @@ This instruction uses the official [Raspberry Pi Imager](https://www.raspberrypi
 1. Confirm the next warning about erasing the SD card with `Yes`
 1. Wait for the imaging process to be finished (it'll take a few minutes)
 1. Plug the SD into your Pi and optionally connect keyboard, monitor and mouse.
-
-### For Raspberry Pi Imager Version < 2.0.0
-
-1. Connect a Micro SD card to your computer (preferable an SD card with high read throughput)
-1. Start the Raspberry Pi Imager
-1. Click on "Raspberry Pi Device" and select "No filtering"
-1. As operating system select **Raspberry Pi OS (other)** and then **Raspberry Pi OS (Legacy, 32-bit) Lite** (no desktop environment).
-1. Select your Micro SD card (your card will be formatted)
-1. After you click `Next`, a prompt will ask you if you like to customize the OS settings
-    * Click `Edit Settings`
-    * Switch to the `General` tab
-        * Provide a hostname. (When on Mac, you will be able to use it to connect via SSH)
-        * Username
-        * Password
-        * Wifi
-        * Set locale settings
-    * Switch to the `Services` tab. Enable SSH with "Use password authentication"
-    * Click `Save`
-1. In the same dialog, click `Yes`
-1. Confirm the next warning about erasing the SD card with `Yes`
-1. Wait for the imaging process to be finished (it'll take a few minutes)
-1. Plug the SD into your Pi and optionally connect keyboard, monitor and mouse.
-
-### Pre-boot preparation
-
-<details>
-
-<summary>In case you forgot to customize the OS settings, follow these instructions after RPi OS has been written to the SD card.</summary>
-
-You will need a terminal, like PuTTY for Windows or the Terminal app for Mac to proceed with the next steps.
-
-1. Open a terminal of your choice.
-2. Insert your card again if it has been ejected automatically.
-3. Navigate to your SD card e.g., `cd /Volumes/boot` for Mac or `D:` for Windows.
-4. Enable SSH by adding a simple file.
-
-    ```bash
-    $ touch ssh
-    ```
-
-5. Set up your Wifi connection.
-
-    *Mac*
-
-    ```bash
-    $ nano wpa_supplicant.conf
-    ```
-
-    *Windows*
-
-    ```bash
-    D:\> notepad wpa_supplicant.conf
-    ```
-
-6. Insert the following content, update your country, Wifi credentials and save the file.
-
-    ```text
-    country=DE
-    ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
-    update_config=1
-
-    network={
-        ssid="network-name"
-        psk="network-password"
-    }
-    ```
-
-7. Eject your SD card and insert it into your Raspberry Pi.
-8. Start your Raspberry Pi by attaching a power supply.
-9. Login into your Raspberry Pi
-   If `raspberrypi.local` does not work, find out your Raspberry Pi's IP address from your router.
-
-</details>
-
-### Pre-install preparation / workarounds
-
-#### Network management since Bookworm
-
-<details>
-With Bookworm, network management has changed. Now, "NetworkManager" is used instead of "dhcpcd".
-Both methods are supported during installation, but "NetworkManager" is recommended as it is simpler to set up and use.
-For Bullseye, this can also be activated, though it requires a manual process before running the installation.
-
-:warning:
-If the settings are changed, your network will reset, and WiFi will not be configured, causing you to lose SSH access via wireless connection.
-Therefore, make sure you use a wired connection or perform the following steps in a local terminal with a connected monitor and keyboard.
-
-Change network config
-
-* run `sudo raspi-config`
-* select `6 - Advanced Options`
-* select `AA - Network Config`
-* select `NetworkManager`
-
-If you need Wifi, add the information now
-
-* select `1 - System Options`
-* select `1 - Wireless LAN`
-* enter Wifi information
-
-</details>
 
 ## Install Phoniebox software
 
@@ -139,7 +38,19 @@ Choose a version, run the corresponding install command in your SSH terminal and
 After a successful installation, [configure your Phoniebox](configuration.md).
 
 > [!TIP]
-> Depending on your hardware, this installation might last around 60 minutes (usually it's faster, 20-30 min). It updates OS packages, installs Phoniebox dependencies and applies settings. Be patient and don't let your computer go to sleep. It might disconnect your SSH connection causing the interruption of the installation process. Consider starting the installation in a terminal multiplexer like 'screen' or 'tmux' to avoid this.
+> Depending on your hardware, this installation might last around 60 minutes (usually it's faster, 20-30 min). It refreshes the package index, installs Phoniebox dependencies and applies settings. Be patient and don't let your computer go to sleep. It might disconnect your SSH connection causing the interruption of the installation process. Consider starting the installation in a terminal multiplexer like 'screen' or 'tmux' to avoid this.
+
+The Web App can upload files or complete folder trees, organize the audio
+library, and delete files or folders, so Samba is disabled by default during
+installation. Choose Samba when you also want direct network access to the
+complete `shared` directory, including configuration files. See
+[Samba](samba.md) for details.
+
+Current Raspberry Pi OS images normally do not need a full operating system upgrade immediately after imaging, so the installer skips it by default. To opt in to `apt-get full-upgrade` and `autoremove`, prefix an installation command with:
+
+```bash
+UPDATE_RASPI_OS=true
+```
 
 ### Stable Release
 
@@ -162,15 +73,25 @@ cd; GIT_BRANCH='future3/develop' bash <(wget -qO- https://raw.githubusercontent.
 You can also install a specific branch and/or a fork repository. Update the variables to refer to your desired location. (The URL must not necessarily be updated, unless you have actually updated the file being downloaded.)
 
 > [!IMPORTANT]
-> A fork repository must be named '*RPi-Jukebox-RFID*' like the official repository
+> A fork repository must be named '*RPi-Jukebox-RFID*' like the official
+> repository.
 
 ```bash
-cd; GIT_USER='MiczFlor' GIT_BRANCH='future3/develop' bash <(wget -qO- https://raw.githubusercontent.com/MiczFlor/RPi-Jukebox-RFID/future3/develop/installation/install-jukebox.sh)
+cd; GIT_USER='your-github-user' GIT_BRANCH='feature/my-change' bash <(wget -qO- https://raw.githubusercontent.com/MiczFlor/RPi-Jukebox-RFID/future3/develop/installation/install-jukebox.sh)
+```
+
+The installer uses HTTPS and fetches only the selected branch with shallow history. Set `GIT_USE_SSH=true` to opt in to SSH access. The installed checkout remains a normal tracking branch, so `git pull` works as usual.
+
+Developers who later need all branches, history and tags can fetch them explicitly:
+
+```bash
+git fetch --unshallow origin
+git fetch origin --tags
 ```
 
 > [!NOTE]
-> The Installation of the official repository's release branches ([Stable Release](#stable-release) and [Pre-Release](#pre-release)) will deploy a pre-build bundle of the Web App.
-> If you install another branch or from a fork repository, the Web App needs to be built locally. This is part of the installation process. See the the developers [Web App](../developers/webapp.md) documentation for further details.
+> The installer deploys a pre-built Web App bundle matching the exact checked-out commit.
+> It never compiles the Web App on the Raspberry Pi and never falls back to a bundle from another commit. If a bundle is unavailable, publish or rerun the Web App CI workflow for that commit before retrying the installation. See the developers [Web App](../developers/webapp.md) documentation for details.
 
 ### Logs
 

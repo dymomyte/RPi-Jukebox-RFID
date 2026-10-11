@@ -42,7 +42,8 @@ need to adapt some of those commands to your needs.
 In contrary to how everything is set up on the Raspberry Pi, it's good
 practice to isolate different components in different Docker images.
 They can be run individually or in combination. To do that, we use
-`docker-compose`.
+`docker compose` (the v2 plugin shipped with Docker Desktop and modern Docker
+Engine — the legacy `docker-compose` v1 binary is no longer required).
 
 ### Mac
 
@@ -51,54 +52,43 @@ They can be run individually or in combination. To do that, we use
 <summary>See details</summary>
 
 1. [Install Docker & Compose (Mac)](https://docs.docker.com/docker-for-mac/install/)
-1. Install pulseaudio
-    1. Use Homebrew to install
+
+1. Install pulseaudio with Homebrew
+
+    ```bash
+    brew install pulseaudio
+    ```
+
+    No edits to `default.pa` are needed — the helper script in step 3 loads `module-native-protocol-tcp` at runtime.
+
+1. Start pulseaudio with TCP enabled
+
+    Run the helper before `docker compose up` (and again after each reboot). It is idempotent — safe to re-run when pulse is already running:
+
+    ```bash
+    ./docker/start_pulseaudio_mac.sh
+    ```
+
+    This starts the pulseaudio daemon (if not running) and loads `module-native-protocol-tcp` so containers can reach it via `host.docker.internal:4713`.
+
+1. Run `docker compose`
+
+    1. Build images
 
         ```bash
-        brew install pulseaudio
+        docker compose -f docker/docker-compose.yml -f docker/docker-compose.mac.yml build
         ```
 
-    1. Enable pulseaudio network capabilities. In an editor, open `/opt/homebrew/Cellar/pulseaudio/16.1/etc/pulse/default.pa` (you might need to adapt this path to your own system settings). Uncomment the following line:
-
-        ```text
-        load-module module-native-protocol-tcp
-        ```
-
-    1. Restart the pulseaudio service
+    1. Run the entire Phoniebox environment
 
         ```bash
-        brew services restart pulseaudio
+        docker compose -f docker/docker-compose.yml -f docker/docker-compose.mac.yml up
         ```
 
-    1. If you have trouble with your audio, try these resources to troubleshoot: [[1]](https://gist.github.com/seongyongkim/b7d630a03e74c7ab1c6b53473b592712), [[2]](https://devops.datenkollektiv.de/running-a-docker-soundbox-on-mac.html), [[3]](https://stackoverflow.com/a/50939994/1062438)
-
-1. Run `docker-compose`
-
-    > [!NOTE]
-    > In order for Pulseaudio to work properly with Docker on your Mac, you need to start Pulseaudio in a specific way. Otherwise MPD will throw an exception. See [Pulseaudio issues on Mac](#pulseaudio-issue-on-mac) for more info.
-
-    1. Build libzmq for your host machine
+    * Shut down containers and the Docker network
 
         ```bash
-        docker build -f docker/Dockerfile.libzmq -t libzmq:local .
-        ```
-
-    1. Build Images
-
-        ```bash
-        docker-compose -f docker/docker-compose.yml -f docker/docker-compose.mac.yml build
-        ```
-
-    1. Run Docker Environment -> Runs the entire Phoniebox environment
-
-        ```bash
-        docker-compose -f docker/docker-compose.yml -f docker/docker-compose.mac.yml up
-        ```
-
-    * Shuts down Docker containers and Docker network
-
-        ```bash
-        docker-compose -f docker/docker-compose.yml -f docker/docker-compose.mac.yml down
+        docker compose -f docker/docker-compose.yml -f docker/docker-compose.mac.yml down
         ```
 
 </details>
@@ -134,30 +124,24 @@ They can be run individually or in combination. To do that, we use
 
 1. Make sure Docker is running (e.g. start Docker Desktop)
 
-1. Run `docker-compose`
+1. Run `docker compose`
 
-    1. Build libzmq for your host machine
+    1. Build images
 
         ```bash
-        docker build -f docker/Dockerfile.libzmq -t libzmq:local .
+        docker compose -f docker/docker-compose.yml build
         ```
 
-    1. Build Images
+    1. Run the entire Phoniebox environment
 
         ```bash
-        docker-compose -f docker/docker-compose.yml build
+        docker compose -f docker/docker-compose.yml up
         ```
 
-    1. Run Docker Environment -> Runs the entire Phoniebox environment
+    * Shut down containers and the Docker network
 
         ```bash
-        docker-compose -f docker/docker-compose.yml up
-        ```
-
-    * Shuts down Docker containers and Docker network
-
-        ```bash
-        docker-compose -f docker/docker-compose.yml down
+        docker compose -f docker/docker-compose.yml down
         ```
 
 </details>
@@ -171,33 +155,27 @@ They can be run individually or in combination. To do that, we use
 1. Install Docker & Compose
     * [Docker](https://docs.docker.com/engine/install/debian/)
     * [Compose](https://docs.docker.com/compose/install/)
-1. Make sure you don\'t use `sudo` to run your `docker-compose`. Check out
+1. Make sure you don\'t use `sudo` to run your `docker compose`. Check out
 Docker\'s [post-installation guide](https://docs.docker.com/engine/install/linux-postinstall/) for more information.
 
-1. Run `docker-compose`
+1. Run `docker compose`
 
-    1. Build libzmq for your host machine
+    1. Build images
 
         ```bash
-        docker build -f docker/Dockerfile.libzmq -t libzmq:local .
+        docker compose -f docker/docker-compose.yml -f docker/docker-compose.linux.yml build
         ```
 
-    1. Build Images
+    1. Run the entire Phoniebox environment
 
         ```bash
-        docker-compose -f docker/docker-compose.yml -f docker/docker-compose.linux.yml build
+        docker compose -f docker/docker-compose.yml -f docker/docker-compose.linux.yml up
         ```
 
-    1. Run Docker Environment -> Runs the entire Phoniebox environment
+    * Shut down containers and the Docker network
 
         ```bash
-        docker-compose -f docker/docker-compose.yml -f docker/docker-compose.linux.yml up
-        ```
-
-    * Shuts down Docker containers and Docker network
-
-        ```bash
-        docker-compose -f docker/docker-compose.yml -f docker/docker-compose.linux.yml down
+        docker compose -f docker/docker-compose.yml -f docker/docker-compose.linux.yml down
         ```
 
 </details>
@@ -211,12 +189,12 @@ Open <http://localhost:3000> in your browser to see the Web App.
 While the `webapp` container does not require a reload while working on
 it (hot-reload is enabled), you will have to restart your `jukebox`
 container whenever you make a change (in the Python code). Instead of
-stopping and starting the `docker-compose` command, you can individually
+stopping and starting the `docker compose` command, you can individually
 restart your `jukebox` container. Update the below path with your
 specific host environment.
 
 ``` bash
-docker-compose -f docker/docker-compose.yml -f docker/docker-compose.[ENVIRONMENT].yml restart jukebox
+docker compose -f docker/docker-compose.yml -f docker/docker-compose.[ENVIRONMENT].yml restart jukebox
 ```
 
 ## Known issues
@@ -230,55 +208,34 @@ would be of course useful to get rid of them, but currently we make a
 trade-off between a development environment and solving the specific
 details.
 
-### Error when local libzmq Dockerfile has not been built:
-
-``` bash
-------
- > [jukebox internal] load metadata for docker.io/library/libzmq:local:
-------
-failed to solve: libzmq:local: pull access denied, repository does not exist or may require authorization: server message: insufficient_scope: authorization failed
-```
-
-Build libzmq for your host machine
-
-``` bash
-docker build -f docker/Dockerfile.libzmq -t libzmq:local .
-```
-
 ### `mpd` container
 
 #### Pulseaudio issue on Mac
 
-If you notice the following exception while running MPD in Docker, it refers to a incorrect setup of your Mac host Pulseaudio.
+If you see either of these errors, the host pulseaudio daemon isn't reachable on TCP — usually because `module-native-protocol-tcp` isn't loaded:
 
 ```text
 mpd      | ALSA lib pulse.c:242:(pulse_connect) PulseAudio: Unable to connect: Connection refused
 mpd      | exception: Failed to read mixer for 'Global ALSA->Pulse stream': failed to attach to pulse: Connection refused
 ```
 
-To fix the issue, try the following.
+```text
+jukebox  | ERROR    - Ignoring failed package load for 'volume'
+jukebox  | ERROR    - Reason: PulseError: Failed to connect to pulseaudio server
+```
 
-1. Stop your Pulseaudio service
+Run the helper script from the project root:
 
-    ```bash
-    brew service stop pulseaudio
-    ```
+```bash
+./docker/start_pulseaudio_mac.sh
+```
 
-1. Start Pulseaudio with this command
+It starts pulseaudio if needed and ensures the TCP module is loaded. Verify with:
 
-    ```bash
-    pulseaudio --load=module-native-protocol-tcp --exit-idle-time=-1 --daemon
-    ```
-
-1. Check if daemon is working
-
-    ```bash
-    pulseaudio --check -v
-    ```
-
-Everything else should have been set up properly as a [prerequisite](#mac)
-
-* [Source](https://gist.github.com/seongyongkim/b7d630a03e74c7ab1c6b53473b592712)
+```bash
+pactl list modules short | grep module-native-protocol-tcp
+lsof -iTCP:4713 -sTCP:LISTEN -P
+```
 
 #### `mpd` issues on Linux
 
@@ -292,7 +249,7 @@ sudo mpd --kill
 Otherwise you might get the error message:
 
 ``` bash
-docker-compose -f docker-compose.yml -f docker-compose.linux.yml up
+docker compose -f docker/docker-compose.yml -f docker/docker-compose.linux.yml up
 Starting mpd ...
 Starting mpd ... error
 (...)
@@ -328,12 +285,16 @@ mpd | exception: Failed to read mixer for 'My ALSA Device': snd_mixer_handle_eve
 
 Many features of the Phoniebox are based on the Raspberry Pi hardware.
 This hardware can\'t be mocked in a virtual Docker environment. As a
-result, a few plugins like RFID, GPIO or CPU temperature will throw
-errors because they can\'t start successfully. Unless you want to
-develop such plugins, you will be able to ignore these errors. The
-plugin system is built in a way that the Jukebox daemon will come up. If
-you want to develop plugins that require hardware support, you will have
-to work on the hardware directly.
+result, a few plugins like RFID or GPIO will throw errors because they
+can\'t start successfully. Docker does not expose the Raspberry Pi
+thermal sensor sysfs, so CPU temperature monitoring is disabled in the
+[Docker configuration override](../../docker/config/jukebox.overrides.yaml).
+Existing Docker configurations that still enable temperature monitoring
+will detect the missing sensor at runtime and leave the timer disabled.
+Unless you want to develop hardware plugins, you will be able to ignore
+the remaining errors. The plugin system is built in a way that the
+Jukebox daemon will come up. If you want to develop plugins that require
+hardware support, you will have to work on the hardware directly.
 
 Typical errors and following exceptions to be ignored in the Docker
 `jukebox` container are:
@@ -342,9 +303,6 @@ Typical errors and following exceptions to be ignored in the Docker
 jukebox    | 634:plugs.py           - jb.plugin            - MainThread      - ERROR    - Ignoring failed package load finalizer: 'rfid.finalize()'
 jukebox    | 635:plugs.py           - jb.plugin            - MainThread      - ERROR    - Reason: FileNotFoundError: [Errno 2] No such file or directory: '/home/pi/RPi-Jukebox-RFID/shared/settings/rfid.yaml'
 ...
-jukebox    | 171:__init__.py        - jb.host.lnx          - MainThread      - ERROR    - Error reading temperature. Canceling temperature publisher. FileNotFoundError: [Errno 2] No such file or directory: '/sys/class/thermal/thermal_zone0/temp'
-...
-jukebox    | 319:server.py          - jb.pub.server        - host.timer.cputemp - ERROR    - Publish command from different thread 'host.timer.cputemp' than publisher was created from 'MainThread'!
 ```
 
 #### Pulseaudio and Volume issues
@@ -371,7 +329,6 @@ docker run -it --rm \
     -v $(PWD)/src/jukebox:/home/pi/RPi-Jukebox-RFID/src/jukebox \
     -v $(PWD)/shared/audiofolders:/home/pi/RPi-Jukebox-RFID/shared/audiofolders \
     -v ~/.config/pulse:/root/.config/pulse \
-    -v /usr/local/Cellar/pulseaudio/14.2/etc/pulse/:/etc/pulse \
     -e PULSE_SERVER=tcp:host.docker.internal:4713 \
     --name jukebox jukebox
 ```
@@ -415,7 +372,3 @@ Mount the device into the container by configuring the appropriate device in a `
 * <https://stmllr.net/blog/streaming-audio-with-mpd-and-icecast2-on-raspberry-pi/>
 * <https://github.com/Tob1asDocker/rpi-mpd>
 * <https://github.com/vimagick/dockerfiles/tree/master/mpd>
-
-#### ZMQ
-
-* <https://codeblog.dotsandbrackets.com/using-zeromq-with-docker/>
