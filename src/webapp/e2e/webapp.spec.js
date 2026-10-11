@@ -864,6 +864,66 @@ test('Spotify settings store the client id', async ({ page }) => {
   expect(consoleErrors).toEqual([]);
 });
 
+test('cards list shows what each card plays', async ({ page }) => {
+  const consoleErrors = collectConsoleErrors(page);
+  await mockBackend(page, { showCovers: true });
+  await page.route('**/api/v1/rpc', async (route, request) => {
+    const payload = request.postDataJSON();
+    const reply = result => route.fulfill({
+      body: JSON.stringify({ id: payload.id, result }),
+      contentType: 'application/json',
+      status: 200,
+    });
+    if (payload.plugin === 'list_cards') {
+      await reply({
+        '04C0FD6F3E6180': {
+          action: { args: ['Julia Donaldson', 'The Gruffalo', 'spotify:show:gruffalo', 'spotify'] },
+          from_alias: 'play_album',
+        },
+        '5BAF97F9': {
+          action: { args: ['spotify:track:manoutofyou', 'spotify'] },
+          from_alias: 'play_single',
+        },
+        '0AB12C34': { action: { args: ['Kids/Mulan (1998)'] }, from_alias: 'play_folder' },
+        '0AB12C35': { action: { args: [5] }, from_alias: 'change_volume' },
+      });
+      return;
+    }
+    if (payload.method === 'get_song_by_url') {
+      const artist = 'Donny Osmond, Chorus - Mulan, Disney, Lea Salonga, BD Wong, Harvey Fierstein, Jerry Tondo';
+      await reply([{ title: "I'll Make a Man Out of You", artist, cover_url: '/cover-cache/test-cover.png' }]);
+      return;
+    }
+    if (payload.method === 'get_album_coverart') {
+      await reply('test-cover.png');
+      return;
+    }
+    await route.fallback();
+  });
+  await page.goto('/#/cards');
+
+  const row = name => page.getByRole('link', { name });
+  await expect(row(/The Gruffalo/)).toContainText('Julia Donaldson · Card 04C0FD6F3E6180');
+  await expect(row(/The Gruffalo/)).toContainText('Spotify');
+  await expect(row(/The Gruffalo/).getByRole('img', { name: 'Cover' })).toHaveAttribute('src', '/cover-cache/test-cover.png');
+  // A long artist line truncates, but the card id stays readable left of the source pill
+  const songRow = row(/Make a Man Out of You/);
+  await expect(songRow).toContainText('Card 5BAF97F9');
+  const [idBox, pillBox] = await Promise.all([
+    songRow.getByText('5BAF97F9', { exact: true }).boundingBox(),
+    songRow.getByText('Spotify', { exact: true }).boundingBox(),
+  ]);
+  expect(idBox.x + idBox.width).toBeLessThanOrEqual(pillBox.x);
+  await expect(row(/Mulan \(1998\)/)).toContainText('Folder · Card 0AB12C34');
+  await expect(row(/Mulan \(1998\)/)).toContainText('Local');
+  await expect(row(/Change volume by/)).toContainText('Audio & Volume · 5 · Card 0AB12C35');
+  await expect(row(/Change volume by/).getByText('Local')).toHaveCount(0);
+
+  await row(/The Gruffalo/).click();
+  await expect(page).toHaveURL(/#\/cards\/04C0FD6F3E6180\/edit/);
+  expect(consoleErrors).toEqual([]);
+});
+
 test('cards with unknown songs still render their song URL', async ({ page }) => {
   const consoleErrors = collectConsoleErrors(page);
   await mockBackend(page);

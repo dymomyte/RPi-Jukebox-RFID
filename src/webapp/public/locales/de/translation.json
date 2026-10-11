@@ -124,7 +124,10 @@
       "no-card-id": "Keine Karten-ID vorhanden"
     },
     "list": {
-      "no-cards-registered": "Es wurden noch keine Karten registriert!"
+      "no-cards-registered": "Es wurden noch keine Karten registriert!",
+      "card": "Karte",
+      "folder": "Ordner",
+      "cover": "Cover"
     },
     "overview": {
       "cards": "Karten",

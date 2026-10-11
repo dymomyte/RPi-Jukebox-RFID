@@ -124,7 +124,10 @@
       "no-card-id": "No card ID"
     },
     "list": {
-      "no-cards-registered": "No cards registered!"
+      "no-cards-registered": "No cards registered!",
+      "card": "Card",
+      "folder": "Folder",
+      "cover": "Cover"
     },
     "overview": {
       "cards": "Cards",
