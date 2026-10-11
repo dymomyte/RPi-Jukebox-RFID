@@ -124,6 +124,7 @@ class SpotifyBackend:
         self._resume_uri = None
         #: Changes around every load, so status read before a load is not tracked
         self._load_generation = 0
+        self._closing = False
 
     def start(self):
         """Start polling go-librespot for status."""
@@ -133,6 +134,7 @@ class SpotifyBackend:
 
     def exit(self):
         logger.debug("Exit routine of Spotify backend started")
+        self._closing = True
         self.resume_store.save(force=True)
         if self.status_thread is None:
             return None
@@ -150,6 +152,8 @@ class SpotifyBackend:
     def _status_poll(self):
         """Poll go-librespot and publish the mapped status while active."""
         load_generation = self._load_generation
+        # A backend switch during the status request must not look like Connect playback
+        was_active = self._active
         try:
             raw = self.client.status()
             self.connected = True
@@ -164,7 +168,7 @@ class SpotifyBackend:
         # The coordinator activates the backend before it loads content, so playback
         # that starts while the backend is inactive was started from a Spotify app
         # through Spotify Connect
-        started_externally = playing and not self._was_playing and not self._active
+        started_externally = playing and not self._was_playing and not was_active and not self._active
         self._was_playing = playing
         with self._status_lock:
             self._status = status
@@ -175,9 +179,16 @@ class SpotifyBackend:
             logger.info("Spotify Connect playback started from another device")
             # The other device plays its own content, not what the box was tracking
             self._stop_tracking()
-            self.on_external_playback()
+            # Select the backend on its own thread: the coordinator lock may be held by a
+            # call that waits for this poll, e.g. exit() closing the poll timer
+            threading.Thread(target=self._select_for_external_playback, name='spotify.connect',
+                             daemon=True).start()
         elif self._active:
             publishing.get_publisher().send('playerstatus', status)
+
+    def _select_for_external_playback(self):
+        if not self._closing:
+            self.on_external_playback()
 
     def _track_resume(self, raw: dict):
         """Remember the episode and position of the podcast or audiobook playing."""

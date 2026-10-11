@@ -120,7 +120,8 @@ install_binary() {
         log_info "Replacing go-librespot ${installed_version:-unknown} with ${GO_LIBRESPOT_VERSION}."
     fi
 
-    asset=$(get_asset_name)
+    # die only leaves the command substitution, so stop here on an unsupported architecture
+    asset=$(get_asset_name) || exit 1
     download_url="${GO_LIBRESPOT_REPO}/releases/download/${GO_LIBRESPOT_VERSION}/${asset}"
     tmp_dir=$(mktemp -d)
 

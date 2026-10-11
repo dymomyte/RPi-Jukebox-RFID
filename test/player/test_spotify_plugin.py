@@ -143,6 +143,7 @@ def test_play_spotify_cards_are_migrated(tmp_path):
         "'A':\n  alias: play_spotify\n  args: spotify:track:T\n"
         "'B':\n  alias: play_spotify\n  args: ['https://open.spotify.com/album/AID']\n"
         "'C':\n  alias: play_card\n  args: [folder]\n"
+        "'D':\n  alias: play_spotify\n"
     )
 
     assert spotify_plugin.migrate_play_spotify_cards(str(cards)) == ['A', 'B']
@@ -152,5 +153,7 @@ def test_play_spotify_cards_are_migrated(tmp_path):
     assert migrated['A'] == {'alias': 'play_single', 'args': ['spotify:track:T', 'spotify']}
     assert migrated['B'] == {'alias': 'play_single', 'args': ['https://open.spotify.com/album/AID', 'spotify']}
     assert migrated['C'] == {'alias': 'play_card', 'args': ['folder']}
+    # Without a URI there is nothing to play, so the card is left for the user to fix
+    assert migrated['D'] == {'alias': 'play_spotify'}
     assert spotify_plugin.migrate_play_spotify_cards(str(cards)) == []
     assert spotify_plugin.migrate_play_spotify_cards(str(tmp_path / 'missing.yaml')) == []

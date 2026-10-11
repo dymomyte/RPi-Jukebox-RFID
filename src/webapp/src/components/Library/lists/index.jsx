@@ -103,16 +103,18 @@ const LibrarySourceView = ({
       />
     );
 
-  if (!searchesCatalog) return library;
-
+  // The library keeps its place in the tree while the search starts and ends, so
+  // it is not mounted again (and reloaded) on every change
   return (
-    <Stack spacing={2} sx={{ width: '100%' }}>
+    <Stack spacing={2} sx={{ width: '100%', alignItems: 'center' }}>
       {library}
-      <SpotifyCatalog
-        isSelecting={isSelecting}
-        query={musicFilter}
-        registerMusicToCard={registerMusicToCard}
-      />
+      {provider === 'spotify' &&
+        <SpotifyCatalog
+          isSelecting={isSelecting}
+          query={searchesCatalog ? musicFilter : ''}
+          registerMusicToCard={registerMusicToCard}
+        />
+      }
     </Stack>
   );
 };

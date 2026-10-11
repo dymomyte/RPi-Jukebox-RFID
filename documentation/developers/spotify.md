@@ -141,8 +141,10 @@ metadata lookups per URI for the lifetime of the process.
 
 * The coordinator holds its lock during catalog calls (`list_library_items`, track listings,
   cover lookups). Uncached Spotify listings take several Web API requests, during which playback
-  commands such as card swipes wait. The listing cache keeps this to the first load; releasing the
-  lock for read-only catalog calls would be a coordinator change.
+  commands such as card swipes wait. The listing cache keeps this to the first load. Cover lookups
+  are cached per URI for the lifetime of the process, so the first card list after a restart
+  makes one request per Spotify card. Releasing the lock for read-only catalog calls would be a
+  coordinator change.
 * `play_card` routes to the default backend only, so second-swipe actions are not available for
   Spotify cards. Supporting them needs a provider-aware `play_card` in the coordinator.
 

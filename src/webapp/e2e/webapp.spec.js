@@ -724,6 +724,23 @@ test('Spotify songs tab lists, filters and plays Liked Songs', async ({ page }) 
   expect(consoleErrors).toEqual([]);
 });
 
+test('Spotify library is not reloaded when a search starts or ends', async ({ page }) => {
+  const { rpcCalls } = await mockBackend(page, { spotify: true });
+  await page.goto('/#/library/spotify/playlists');
+  await expect(page.getByText('Road Trip')).toBeVisible();
+  const libraryLoads = () => rpcCalls.filter(call => call.method === 'list_library_items').length;
+  const loadsBefore = libraryLoads();
+
+  await page.getByRole('button', { name: 'Show search' }).click();
+  const searchBox = page.getByRole('textbox', { name: 'Search your library and Spotify' });
+  await searchBox.fill('road');
+  await expect(page.getByRole('heading', { name: 'Your library' })).toBeVisible();
+  await searchBox.fill('');
+  await expect(page.getByText('Hottest 100')).toBeVisible();
+
+  expect(libraryLoads()).toBe(loadsBefore);
+});
+
 test('Spotify podcasts and audiobooks can be browsed, played and found', async ({ page }) => {
   const consoleErrors = collectConsoleErrors(page);
   const { rpcCalls } = await mockBackend(page, { spotify: true });

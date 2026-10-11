@@ -1,3 +1,4 @@
+import threading
 from unittest.mock import Mock, call
 
 import pytest
@@ -33,6 +34,18 @@ def publisher(monkeypatch):
     publisher = Mock()
     monkeypatch.setattr(publishing, 'get_publisher', Mock(return_value=publisher))
     return publisher
+
+
+@pytest.fixture
+def inline_threads(monkeypatch):
+    """Run the Spotify Connect handover thread inline, so tests can check it at once."""
+    class InlineThread:
+        def __init__(self, target, **kwargs):
+            self.target = target
+
+        def start(self):
+            self.target()
+    monkeypatch.setattr(threading, 'Thread', InlineThread)
 
 
 def make_backend(raw=None, web_api=None):
@@ -116,7 +129,7 @@ def test_unreachable_go_librespot_reports_stopped(publisher):
 
 # go-librespot 0.7.4 leaves play_origin_device_id empty for Spotify Connect playback
 @pytest.mark.parametrize('raw', [PLAYING, {**PLAYING, 'play_origin_device_id': 'phone'}])
-def test_spotify_connect_playback_selects_backend(publisher, raw):
+def test_spotify_connect_playback_selects_backend(publisher, inline_threads, raw):
     backend = make_backend(raw)
     backend.on_external_playback = Mock()
 
@@ -126,7 +139,7 @@ def test_spotify_connect_playback_selects_backend(publisher, raw):
     backend.on_external_playback.assert_called_once_with()
 
 
-def test_spotify_connect_resume_selects_backend(publisher):
+def test_spotify_connect_resume_selects_backend(publisher, inline_threads):
     backend = make_backend({**PLAYING, 'paused': True})
     backend.on_external_playback = Mock()
     backend._status_poll()
@@ -143,7 +156,7 @@ def test_spotify_connect_resume_selects_backend(publisher):
     ({**PLAYING, 'paused': True}, False),
     (None, False),
 ])
-def test_active_or_silent_playback_does_not_select_backend(publisher, raw, active):
+def test_active_or_silent_playback_does_not_select_backend(publisher, inline_threads, raw, active):
     backend = make_backend(raw)
     backend.on_external_playback = Mock()
     backend._active = active
@@ -153,7 +166,7 @@ def test_active_or_silent_playback_does_not_select_backend(publisher, raw, activ
     backend.on_external_playback.assert_not_called()
 
 
-def test_continued_playback_does_not_reselect_backend(publisher):
+def test_continued_playback_does_not_reselect_backend(publisher, inline_threads):
     # Polls that complete after the coordinator switched away from Spotify must
     # not switch back while Spotify is still reported as playing
     backend = make_backend(PLAYING)
@@ -161,6 +174,45 @@ def test_continued_playback_does_not_reselect_backend(publisher):
     backend._active = True
     backend._status_poll()
     backend._active = False
+
+    backend._status_poll()
+
+    backend.on_external_playback.assert_not_called()
+
+
+def test_backend_switch_during_status_request_does_not_select_backend(publisher, inline_threads):
+    # A card swipe for another backend deactivates Spotify while its playing status is read
+    backend = make_backend()
+    backend.on_external_playback = Mock()
+    backend._active = True
+
+    def status_during_switch():
+        backend._active = False
+        return PLAYING
+    backend.client.status.side_effect = status_during_switch
+    backend._status_poll()
+
+    backend.on_external_playback.assert_not_called()
+
+
+def test_connect_handover_does_not_block_the_poll(publisher):
+    # The coordinator lock may be held by exit(), which waits for the poll timer
+    backend = make_backend(PLAYING)
+    release = threading.Event()
+    selected = threading.Event()
+    backend.on_external_playback = Mock(side_effect=lambda: (release.wait(2), selected.set()))
+
+    backend._status_poll()
+
+    assert not selected.is_set()
+    release.set()
+    assert selected.wait(2)
+
+
+def test_no_connect_handover_after_exit(publisher, inline_threads):
+    backend = make_backend(PLAYING)
+    backend.on_external_playback = Mock()
+    backend.exit()
 
     backend._status_poll()
 

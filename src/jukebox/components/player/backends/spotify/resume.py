@@ -104,8 +104,10 @@ class ResumeStore:
                 os.replace(tmp_path, self.path)
             except OSError as e:
                 logger.warning(f"Could not save Spotify resume positions: {e}")
+                with self._lock:
+                    self._dirty = True
 
 
 def is_finished(entry: dict) -> bool:
-    """Return True if the saved position is at the end of its episode."""
-    return entry['duration_ms'] - entry['position_ms'] <= FINISHED_MARGIN_MS
+    """Return True if the saved position is at the end of its episode (of known duration)."""
+    return entry['duration_ms'] > 0 and entry['duration_ms'] - entry['position_ms'] <= FINISHED_MARGIN_MS

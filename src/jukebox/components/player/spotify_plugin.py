@@ -85,7 +85,10 @@ def migrate_play_spotify_cards(filename: str) -> list:
             if not isinstance(card, dict) or card.get('alias') != 'play_spotify':
                 continue
             args = card.get('args')
-            uri = args[0] if isinstance(args, list) else args
+            uri = args[0] if isinstance(args, list) and args else args
+            if not uri:
+                logger.warning(f"Card '{card_id}' uses play_spotify without a Spotify URI and is left unchanged")
+                continue
             card['alias'] = 'play_single'
             card['args'] = [uri, 'spotify']
             migrated.append(card_id)

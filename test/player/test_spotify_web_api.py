@@ -305,6 +305,35 @@ def test_listings_are_cached_until_expiry(monkeypatch):
     assert client.current_user_playlists.call_count == 2
 
 
+def test_authorization_exchanges_the_new_code_despite_a_cached_token():
+    api = connected_api(Mock())
+
+    assert api.complete_auth('http://127.0.0.1:8080/callback?code=abc') == {'success': True}
+
+    api._auth_manager.get_access_token.assert_called_once_with(
+        api._auth_manager.parse_response_code.return_value, check_cache=False)
+
+
+def test_song_lookup_of_other_content_uses_its_metadata():
+    client = Mock()
+    client.album.return_value = {'uri': 'spotify:album:A', 'name': 'Album', 'artists': [{'name': 'Band'}],
+                                 'images': [{'url': 'cover'}]}
+
+    song = connected_api(client).get_song('https://open.spotify.com/album/A')
+
+    client.track.assert_not_called()
+    assert song == {'provider': 'spotify', 'file': 'https://open.spotify.com/album/A', 'title': 'Album',
+                    'artist': 'Band', 'album': 'Album', 'cover_url': 'cover'}
+
+
+@pytest.mark.parametrize('uri', ['spotify:track:GONE', 'not a uri'])
+def test_failed_song_lookup_returns_nothing(uri):
+    client = Mock()
+    client.track.side_effect = Exception('Not found')
+
+    assert connected_api(client).get_song(uri) == {}
+
+
 def test_listing_cache_is_cleared_after_authorization():
     client = Mock()
     client.current_user_playlists.return_value = {'items': [], 'next': None}

@@ -63,6 +63,30 @@ def test_store_tolerates_a_broken_file(tmp_path):
     assert ResumeStore(str(path)).get(SHOW) is None
 
 
+def test_failed_write_is_retried(tmp_path):
+    path = tmp_path / 'missing-dir' / 'resume.json'
+    store = ResumeStore(str(path))
+    store.update(SHOW, EPISODE, 60000, 600000)
+    store.save(force=True)
+    assert not path.exists()
+
+    path.parent.mkdir()
+    store.save(force=True)
+
+    assert json.loads(path.read_text())[SHOW]['position_ms'] == 60000
+
+
+@pytest.mark.parametrize(('position', 'duration', 'finished'), [
+    (595000, 600000, True),
+    (60000, 600000, False),
+    # go-librespot reported no duration
+    (60000, 0, False),
+])
+def test_is_finished(position, duration, finished):
+    entry = {'episode': EPISODE, 'position_ms': position, 'duration_ms': duration}
+    assert resume.is_finished(entry) is finished
+
+
 def test_store_drops_the_least_recently_played(monkeypatch):
     monkeypatch.setattr(resume, 'MAX_ENTRIES', 2)
     clock = Mock(side_effect=[1, 2, 3])

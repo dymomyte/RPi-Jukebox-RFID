@@ -12,8 +12,10 @@ The token cache is persisted to a file under ``shared/settings/`` so the box
 re-authenticates only once. spotipy handles token refresh transparently.
 
 Only endpoints available to Development Mode apps after Spotify's February 2026
-changes are used: ``/me/playlists``, ``/me/albums``, ``/albums/{id}``,
-``/playlists/{id}``, ``/playlists/{id}/items``, ``/tracks/{id}`` and ``/search``.
+changes are used: ``/me``, ``/me/playlists``, ``/me/albums``, ``/me/tracks``,
+``/me/shows``, ``/me/audiobooks``, ``/albums/{id}``, ``/playlists/{id}``,
+``/playlists/{id}/items``, ``/shows/{id}``, ``/tracks/{id}``, ``/episodes/{id}``
+and ``/search``.
 Note that playlist contents are only returned for playlists the user owns or
 collaborates on; other playlists can still be played and assigned to cards.
 Playlist items and search results therefore carry ``tracks_available``.
@@ -134,7 +136,9 @@ class SpotifyWebApi:
             code = code_or_url
             if '://' in code_or_url or 'code=' in code_or_url:
                 code = self._auth_manager.parse_response_code(code_or_url)
-            self._auth_manager.get_access_token(code)
+            # Exchange the new code even if a token is cached: the cached one may be
+            # revoked, belong to another account or lack scopes
+            self._auth_manager.get_access_token(code, check_cache=False)
         except Exception as e:
             logger.error(f"Spotify auth completion failed: {e}")
             return {'success': False}
@@ -286,13 +290,34 @@ class SpotifyWebApi:
         return [shape_song(track) for track in tracks if track and track.get('type', 'track') == 'track']
 
     def get_song(self, uri: str) -> dict:
-        """Return a single track or episode as song entry, or ``{}`` if unavailable."""
+        """Return a Spotify URI as song entry, or ``{}`` if unavailable.
+
+        Tracks and episodes are looked up in full. Other content (e.g. an album on a
+        ``play_single`` card migrated from the former ``play_spotify`` alias) gets its
+        name and cover.
+        """
         if not self._ready('track lookup'):
             return {}
-        uri_type, uri_id = uri_utils.parse_uri(uri)
-        if uri_type == 'episode':
-            return shape_episode(self._client.episode(uri_id, market='from_token'))
-        return shape_song(self._client.track(uri_id))
+        try:
+            uri_type, uri_id = uri_utils.parse_uri(uri)
+            if uri_type == 'track':
+                return shape_song(self._client.track(uri_id))
+            if uri_type == 'episode':
+                return shape_episode(self._client.episode(uri_id, market='from_token'))
+        except Exception as e:
+            logger.error(f"Spotify song lookup failed for {uri}: {e}")
+            return {}
+        metadata = self.get_metadata(uri)
+        if not metadata:
+            return {}
+        return {
+            'provider': PROVIDER,
+            'file': uri,
+            'title': metadata.get('name'),
+            'artist': ', '.join(metadata.get('artists') or []),
+            'album': metadata.get('album'),
+            'cover_url': metadata.get('cover_url'),
+        }
 
     # -- search & metadata --------------------------------------------------
     def search(self, query: str, types: str = 'track,album,playlist', limit: int = MAX_SEARCH_LIMIT) -> list:
