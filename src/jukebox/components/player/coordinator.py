@@ -166,6 +166,21 @@ class PlayerCoordinator:
         return self._call_active('seek', new_time)
 
     @plugs.tag
+    def seek_relative(self, seconds):
+        """Seek forwards (positive) or backwards (negative) by seconds in the current song"""
+        return self._call_active('seek_relative', seconds)
+
+    @plugs.tag
+    def prev_or_restart(self, threshold=3):
+        """Restart the current song if more than threshold seconds have played, else go to the previous song"""
+        with self._lock:
+            backend = self._get_active_backend()
+            status = self._call_backend(backend, 'playerstatus') or {}
+            if status.get('state') in ('play', 'pause') and float(status.get('elapsed') or 0) > float(threshold):
+                return self._call_backend(backend, 'seek', 0)
+            return self._call_backend(backend, 'prev')
+
+    @plugs.tag
     def rewind(self):
         return self._call_active('rewind')
 

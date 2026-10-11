@@ -84,3 +84,14 @@ def test_inactive_backend_does_not_publish_status(monkeypatch):
         'playerstatus',
         {'state': 'stop', 'provider': 'mpd'},
     )
+
+
+def test_seek_relative_sends_signed_offset():
+    backend = mpd_backend()
+    backend.mpd_lock = nullcontext()
+    backend.mpd_client = Mock()
+
+    backend.seek_relative(-10)
+    backend.seek_relative('5')
+
+    assert [c.args for c in backend.mpd_client.seekcur.call_args_list] == [('-10.0',), ('+5.0',)]

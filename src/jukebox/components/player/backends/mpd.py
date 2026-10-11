@@ -408,6 +408,12 @@ class PlayerMPD:
             self.mpd_client.seekcur(new_time)
 
     @plugs.tag
+    def seek_relative(self, seconds):
+        """Seek forwards (positive) or backwards (negative) by seconds; MPD stops at the start of the song"""
+        with self.mpd_lock:
+            self.mpd_client.seekcur(f"{float(seconds):+}")
+
+    @plugs.tag
     def rewind(self):
         """
         Re-start current playlist from first track

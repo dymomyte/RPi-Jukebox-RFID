@@ -225,6 +225,27 @@ def test_seek_converts_seconds_to_milliseconds():
     backend.client.seek.assert_called_once_with(12346)
 
 
+@pytest.mark.parametrize(
+    ('position', 'seconds', 'expected'),
+    [
+        (60000, -10, 50000),
+        (4000, -10, 0),
+        (60000, 5.5, 65500),
+        (175000, 10, 180000),
+    ],
+)
+def test_seek_relative_stays_within_track(position, seconds, expected):
+    backend = make_backend({**PLAYING, 'track': {**PLAYING['track'], 'position': position, 'duration': 180000}})
+    backend.seek_relative(seconds)
+    backend.client.seek.assert_called_once_with(expected)
+
+
+def test_seek_relative_without_session_seeks_to_start():
+    backend = make_backend(None)
+    backend.seek_relative(-10)
+    backend.client.seek.assert_called_once_with(0)
+
+
 def test_stop_never_raises():
     backend = make_backend()
     backend.client.stop.side_effect = GoLibrespotError('down')

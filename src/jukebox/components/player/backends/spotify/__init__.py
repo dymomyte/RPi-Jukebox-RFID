@@ -263,6 +263,15 @@ class SpotifyBackend:
         """Seek to an absolute position in seconds (the unit shared with the MPD backend)"""
         self.client.seek(round(float(new_time) * 1000))
 
+    def seek_relative(self, seconds):
+        """Seek forwards (positive) or backwards (negative) by seconds, staying within the current track"""
+        track = (self.client.status() or {}).get('track') or {}
+        position = (track.get('position') or 0) + round(float(seconds) * 1000)
+        duration = track.get('duration') or 0
+        if duration:
+            position = min(position, duration)
+        self.client.seek(max(0, position))
+
     def replay(self):
         """Play the last played Spotify content from the beginning"""
         if self.last_played_uri is None:

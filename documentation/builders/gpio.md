@@ -145,6 +145,48 @@ input_devices:
         alias: replay
 ```
 
+### Button: Skip and Seek
+
+Back and forward buttons like on a media player. A short press on the back button restarts the current song,
+or goes to the previous song within the first 3 seconds. Holding a button seeks 10 seconds back or forward
+every 0.6 seconds until it is released.
+
+```yml
+input_devices:
+  Back:
+    type: ShortLongPressButton
+    kwargs:
+      pin: 17
+      hold_time: 0.6
+      bounce_time: 0.1
+      hold_repeat: true
+    actions:
+      on_short_press:
+        package: player
+        plugin: ctrl
+        method: prev_or_restart
+      on_long_press:
+        package: player
+        plugin: ctrl
+        method: seek_relative
+        args: -10
+  Forward:
+    type: ShortLongPressButton
+    kwargs:
+      pin: 27
+      hold_time: 0.6
+      bounce_time: 0.1
+      hold_repeat: true
+    actions:
+      on_short_press:
+        alias: next_song
+      on_long_press:
+        package: player
+        plugin: ctrl
+        method: seek_relative
+        args: 10
+```
+
 ### TwinButton: Six function beast
 
 Use two buttons to encode up to six actions depending on single / dual press and also short / long press.
