@@ -25,7 +25,7 @@ from . import uri_utils
 
 logger = logging.getLogger('jb.spotify.webapi')
 
-#: OAuth scopes: read access to the user's playlists, saved albums and Liked Songs
+#: OAuth scopes: read access to the user's playlists and library (albums, songs, podcasts, audiobooks)
 SCOPE = 'playlist-read-private playlist-read-collaborative user-library-read'
 
 #: Spotify caps the search 'limit' at 10 for Development Mode apps
@@ -217,17 +217,40 @@ class SpotifyWebApi:
             if entry.get('track')
         ])
 
-    def list_tracks(self, content_uri: str) -> list:
-        """Return the tracks of an album or playlist as song entries.
+    def list_saved_podcasts(self) -> list:
+        """Return the user's saved podcasts as library items."""
+        if not self._ready('saved podcasts'):
+            return []
+        return self._cached('podcasts', self._fetch_podcasts)
 
-        :param content_uri: Spotify album or playlist URI / share link
+    def _fetch_podcasts(self) -> list:
+        # Spotify also lists the saved audiobooks among the saved shows
+        audiobooks = {item['content_uri'] for item in self.list_saved_audiobooks()}
+        return [shape_podcast_item(entry['show'])
+                for entry in self._collect(self._client.current_user_saved_shows(limit=_PAGE_SIZE))
+                if entry.get('show') and entry['show'].get('uri') not in audiobooks]
+
+    def list_saved_audiobooks(self) -> list:
+        """Return the user's saved audiobooks as library items."""
+        if not self._ready('saved audiobooks'):
+            return []
+        # spotipy has no call for the saved audiobooks
+        return self._cached('audiobooks', lambda: [
+            shape_audiobook_item(entry)
+            for entry in self._collect(self._client._get('me/audiobooks', limit=_PAGE_SIZE))
+        ])
+
+    def list_tracks(self, content_uri: str) -> list:
+        """Return the tracks of an album or playlist, or the episodes of a show, as song entries.
+
+        :param content_uri: Spotify album, playlist, podcast or audiobook URI / share link
         """
         if not self._ready('track listing'):
             return []
         content_type, content_id = uri_utils.parse_uri(content_uri)
         if content_type == 'collection':
             return self.list_saved_tracks()
-        if content_type not in ('album', 'playlist'):
+        if content_type not in ('album', 'playlist', 'show'):
             raise ValueError(f"Cannot list tracks of Spotify {content_type} '{content_uri}'")
         if content_type == 'playlist' and self._is_known_unshared(content_id):
             return []
@@ -246,6 +269,10 @@ class SpotifyWebApi:
             album = self._client.album(content_id)
             tracks = self._collect(album.get('tracks'))
             return [shape_song(track, album) for track in tracks]
+        if content_type == 'show':
+            # Audiobooks are shows too; their chapters are listed as episodes
+            show = self._client.show(content_id, market='from_token')
+            return [shape_episode(episode, show) for episode in self._collect(show.get('episodes'))]
         try:
             entries = self._collect(self._client.playlist_items(content_id, additional_types=('track',)))
         except Exception as e:
@@ -259,11 +286,13 @@ class SpotifyWebApi:
         return [shape_song(track) for track in tracks if track and track.get('type', 'track') == 'track']
 
     def get_song(self, uri: str) -> dict:
-        """Return a single track as song entry, or ``{}`` if unavailable."""
+        """Return a single track or episode as song entry, or ``{}`` if unavailable."""
         if not self._ready('track lookup'):
             return {}
-        _, track_id = uri_utils.parse_uri(uri)
-        return shape_song(self._client.track(track_id))
+        uri_type, uri_id = uri_utils.parse_uri(uri)
+        if uri_type == 'episode':
+            return shape_episode(self._client.episode(uri_id, market='from_token'))
+        return shape_song(self._client.track(uri_id))
 
     # -- search & metadata --------------------------------------------------
     def search(self, query: str, types: str = 'track,album,playlist', limit: int = MAX_SEARCH_LIMIT) -> list:
@@ -278,7 +307,8 @@ class SpotifyWebApi:
             return []
         limit = max(1, min(int(limit), MAX_SEARCH_LIMIT))
         try:
-            raw = self._client.search(q=query, type=types, limit=limit)
+            # Audiobooks are only returned for a market
+            raw = self._client.search(q=query, type=types, limit=limit, market='from_token')
         except Exception as e:
             logger.error(f"Spotify search failed: {e}")
             return []
@@ -304,16 +334,18 @@ class SpotifyWebApi:
         cached = self._metadata_cache.get(cache_key)
         if cached is not None:
             return cached
+        fetchers = {
+            'track': lambda: shape_search_track(self._client.track(uri_id)),
+            'album': lambda: shape_search_album(self._client.album(uri_id)),
+            'playlist': lambda: shape_search_playlist(self._client.playlist(uri_id, fields='uri,name,owner,images')),
+            'show': lambda: shape_search_show(self._client.show(uri_id, market='from_token')),
+            'episode': lambda: shape_search_episode(self._client.episode(uri_id, market='from_token')),
+        }
+        if uri_type not in fetchers:
+            logger.warning(f"get_metadata: unsupported type '{uri_type}'")
+            return {}
         try:
-            if uri_type == 'track':
-                result = shape_search_track(self._client.track(uri_id))
-            elif uri_type == 'album':
-                result = shape_search_album(self._client.album(uri_id))
-            elif uri_type == 'playlist':
-                result = shape_search_playlist(self._client.playlist(uri_id, fields='uri,name,owner,images'))
-            else:
-                logger.warning(f"get_metadata: unsupported type '{uri_type}'")
-                return {}
+            result = fetchers[uri_type]()
         except Exception as e:
             logger.error(f"Spotify get_metadata failed for {uri}: {e}")
             return {}
@@ -378,6 +410,23 @@ def shape_search_liked_songs(uri: str) -> dict:
             'album': None, 'cover_url': LIKED_SONGS_COVER, 'duration_ms': None}
 
 
+def shape_podcast_item(show: dict) -> dict:
+    """Shape a Spotify show object into a podcast library item."""
+    return {
+        'provider': PROVIDER,
+        'content_type': 'podcast',
+        'content_uri': show.get('uri'),
+        'albumartist': show_authors(show),
+        'album': show.get('name'),
+        'cover_url': first_image_url(show.get('images')),
+    }
+
+
+def shape_audiobook_item(audiobook: dict) -> dict:
+    """Shape a Spotify audiobook object into a library item. Its URI is a show URI."""
+    return {**shape_podcast_item(audiobook), 'content_type': 'audiobook'}
+
+
 def shape_album_item(item: dict) -> dict:
     """Shape a Spotify album object into a player library item."""
     return {
@@ -408,6 +457,33 @@ def shape_song(track: dict, album: dict = None) -> dict:
         'track': track.get('track_number'),
         'duration': duration_ms / 1000 if duration_ms is not None else None,
         'cover_url': first_image_url(album.get('images')),
+    }
+
+
+def show_authors(show: dict) -> str:
+    """Return the authors of an audiobook or the publisher of a podcast, or None."""
+    authors = ', '.join(author.get('name') for author in show.get('authors') or [] if author.get('name'))
+    return authors or show.get('publisher') or None
+
+
+def shape_episode(episode: dict, show: dict = None) -> dict:
+    """Shape a Spotify episode or audiobook chapter into a player song entry.
+
+    :param episode: Spotify episode object
+    :param show: Show object for show listings, whose episodes carry no show data
+    """
+    show = show or episode.get('show') or {}
+    duration_ms = episode.get('duration_ms')
+    return {
+        'provider': PROVIDER,
+        'file': episode.get('uri'),
+        'title': episode.get('name'),
+        'artist': show.get('name'),
+        'album': show.get('name'),
+        'albumartist': show_authors(show),
+        'track': None,
+        'duration': duration_ms / 1000 if duration_ms is not None else None,
+        'cover_url': first_image_url(episode.get('images')) or first_image_url(show.get('images')),
     }
 
 
@@ -453,6 +529,38 @@ def shape_search_playlist(item: dict, user_id: str = None) -> dict:
     }
 
 
+def shape_search_show(item: dict) -> dict:
+    """Shape a Spotify show (podcast) object into a search result."""
+    return {
+        'uri': item.get('uri'),
+        'type': 'show',
+        'name': item.get('name'),
+        'artists': [show_authors(item)] if show_authors(item) else [],
+        'album': None,
+        'cover_url': first_image_url(item.get('images')),
+        'duration_ms': None,
+    }
+
+
+def shape_search_audiobook(item: dict) -> dict:
+    """Shape a Spotify audiobook object into a search result. Its URI is a show URI."""
+    return {**shape_search_show(item), 'type': 'audiobook'}
+
+
+def shape_search_episode(item: dict) -> dict:
+    """Shape a Spotify episode object into a search result."""
+    show = item.get('show') or {}
+    return {
+        'uri': item.get('uri'),
+        'type': 'episode',
+        'name': item.get('name'),
+        'artists': [show['name']] if show.get('name') else [],
+        'album': show.get('name'),
+        'cover_url': first_image_url(item.get('images')) or first_image_url(show.get('images')),
+        'duration_ms': item.get('duration_ms'),
+    }
+
+
 def flatten_search(raw: dict, user_id: str = None) -> list:
     """Flatten a spotipy search response into a single ordered list of items.
 
@@ -465,6 +573,9 @@ def flatten_search(raw: dict, user_id: str = None) -> list:
         'tracks': shape_search_track,
         'albums': shape_search_album,
         'playlists': lambda item: shape_search_playlist(item, user_id),
+        'shows': shape_search_show,
+        'audiobooks': shape_search_audiobook,
+        'episodes': shape_search_episode,
     }
     results = []
     for section_key, shaper in shapers.items():

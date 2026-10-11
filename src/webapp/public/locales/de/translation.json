@@ -70,7 +70,9 @@
             "types": {
               "track": "Titel",
               "album": "Album",
-              "playlist": "Playlist"
+              "playlist": "Playlist",
+              "show": "Podcast",
+              "audiobook": "Hörbuch"
             }
           }
         },
@@ -150,6 +152,8 @@
       "playlists": "Playlists",
       "tracks": "Titel",
       "songs": "Titel",
+      "podcasts": "Podcasts",
+      "audiobooks": "Hörbücher",
       "search-spotify-label": "Bibliothek und Spotify durchsuchen"
     },
     "sources": {
@@ -240,6 +244,8 @@
       "songs": "Titel",
       "albums": "Alben",
       "playlists": "Playlists",
+      "podcasts": "Podcasts",
+      "audiobooks": "Hörbücher",
       "search-error": "Die Spotify-Suche ist fehlgeschlagen. Prüfe die Verbindung zur Spotify Web API in den Einstellungen.",
       "no-results": "Auf Spotify wurde nichts gefunden.",
       "tracks-not-shared": "Spotify gibt die Titel von Playlists, die dir nicht gehören, nicht frei. Du kannst die Playlist trotzdem abspielen oder einer Karte zuweisen."

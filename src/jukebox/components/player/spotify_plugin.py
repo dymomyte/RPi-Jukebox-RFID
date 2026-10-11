@@ -19,6 +19,7 @@ import jukebox.publishing as publishing
 
 from .backends.spotify import SpotifyBackend
 from .backends.spotify.go_librespot_client import GoLibrespotClient
+from .backends.spotify.resume import ResumeStore
 from .backends.spotify.web_api import SpotifyWebApi
 from .coordinator import PlayerCoordinator
 
@@ -169,8 +170,11 @@ def _register_spotify_backend(player_ctrl: PlayerCoordinator, plugin_module_name
         port=cfg.setndefault('spotify', 'go_librespot', 'port', value=3678),
     )
     web_api = create_web_api()
+    resume_file = resolve_path(cfg.setndefault('spotify', 'resume_file',
+                                               value='../../shared/settings/spotify_resume.json'))
     backend = SpotifyBackend(client, web_api,
-                             poll_interval=cfg.setndefault('spotify', 'status_poll_interval', value=0.25))
+                             poll_interval=cfg.setndefault('spotify', 'status_poll_interval', value=0.25),
+                             resume_store=ResumeStore(resume_file))
     backend.on_external_playback = lambda: player_ctrl.select_backend('spotify')
     player_ctrl.register_backend('spotify', backend)
     backend.start()

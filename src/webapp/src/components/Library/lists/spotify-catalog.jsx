@@ -14,7 +14,7 @@ import AlbumListItem from './albums/album-list/album-list-item';
 import SongListItem from './albums/song-list/song-list-item';
 import SectionLabel from './section-label';
 
-const SEARCH_TYPES = 'track,album,playlist';
+const SEARCH_TYPES = 'track,album,playlist,show,audiobook';
 const SEARCH_DELAY_MS = 400;
 const MIN_QUERY_LENGTH = 2;
 
@@ -42,7 +42,12 @@ const groupResults = (results) => ({
   tracks: results.filter(({ type }) => type === 'track').map(toSong),
   albums: results.filter(({ type }) => type === 'album').map(toItem),
   playlists: results.filter(({ type }) => type === 'playlist').map(toItem),
+  podcasts: results.filter(({ type }) => type === 'show').map(toItem),
+  audiobooks: results.filter(({ type }) => type === 'audiobook').map(toItem),
 });
+
+// Item sections below the songs, with the library view their items open in
+const ITEM_SECTIONS = ['albums', 'playlists', 'podcasts', 'audiobooks'];
 
 const Section = ({ kind, title, children }) => (
   <Box component="section" sx={{ width: '100%' }}>
@@ -91,7 +96,8 @@ const SpotifyCatalog = ({ isSelecting, query, registerMusicToCard }) => {
   if (error) return <Typography>{t('library.spotify.search-error')}</Typography>;
   if (!results.length) return <Typography>{t('library.spotify.no-results')}</Typography>;
 
-  const { tracks, albums, playlists } = groupResults(results);
+  const grouped = groupResults(results);
+  const { tracks } = grouped;
 
   return (
     <Stack spacing={2} sx={{ width: '100%' }}>
@@ -108,20 +114,13 @@ const SpotifyCatalog = ({ isSelecting, query, registerMusicToCard }) => {
           ))}
         </Section>
       }
-      {albums.length > 0 &&
-        <Section kind="albums" title={t('library.spotify.albums')}>
-          {albums.map((item) => (
-            <AlbumListItem key={item.content_uri} view="albums" {...item} />
+      {ITEM_SECTIONS.filter((view) => grouped[view].length > 0).map((view) => (
+        <Section key={view} kind={view} title={t(`library.spotify.${view}`)}>
+          {grouped[view].map((item) => (
+            <AlbumListItem key={item.content_uri} view={view} {...item} />
           ))}
         </Section>
-      }
-      {playlists.length > 0 &&
-        <Section kind="playlists" title={t('library.spotify.playlists')}>
-          {playlists.map((item) => (
-            <AlbumListItem key={item.content_uri} view="playlists" {...item} />
-          ))}
-        </Section>
-      }
+      ))}
     </Stack>
   );
 };

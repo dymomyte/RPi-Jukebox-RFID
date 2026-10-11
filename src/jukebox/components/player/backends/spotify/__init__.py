@@ -8,12 +8,15 @@ cards, the Web App and all other components keep talking to ``player.ctrl``.
 
 ## Features
 
-* Playback of Spotify tracks, albums and playlists through ``play_single`` and
-  ``play_album`` with ``provider='spotify'`` and the Spotify URI as content URI
+* Playback of Spotify tracks, albums, playlists, podcasts and audiobooks through
+  ``play_single`` and ``play_album`` with ``provider='spotify'`` and the Spotify URI
+  as content URI
+* Podcasts, audiobooks and single episodes resume where they stopped (see :mod:`resume`)
 * Transport controls, seek, shuffle and repeat through go-librespot
 * Status polling of go-librespot; ``playerstatus`` is published in the same shape
   as the MPD backend, but only while this backend is active
-* Library source with the user's playlists and saved albums (Spotify Web API)
+* Library source with the user's playlists, saved albums, Liked Songs, podcasts and
+  audiobooks (Spotify Web API)
 * Spotify Connect playback started from another device selects this backend,
   so the coordinator stops the previously active backend
 
@@ -36,6 +39,7 @@ import jukebox.publishing as publishing
 
 from . import uri_utils
 from .go_librespot_client import GoLibrespotClient, GoLibrespotError
+from .resume import RESUMABLE_TYPES, ResumeStore, is_finished
 from .web_api import SpotifyWebApi
 
 logger = logging.getLogger('jb.spotify')
@@ -97,12 +101,15 @@ class SpotifyBackend:
     :param client: go-librespot REST client
     :param web_api: Spotify Web API wrapper for library browsing and cover art
     :param poll_interval: Status poll interval in seconds
+    :param resume_store: Resume positions of podcasts and audiobooks (kept in memory if None)
     """
 
-    def __init__(self, client: GoLibrespotClient, web_api: SpotifyWebApi = None, poll_interval: float = 0.25):
+    def __init__(self, client: GoLibrespotClient, web_api: SpotifyWebApi = None, poll_interval: float = 0.25,
+                 resume_store: ResumeStore = None):
         self.client = client
         self.web_api = web_api
         self.poll_interval = poll_interval
+        self.resume_store = resume_store or ResumeStore()
         #: Called without arguments when Spotify Connect playback starts while the
         #: backend is inactive. The plugin sets this to select the backend.
         self.on_external_playback = None
@@ -113,6 +120,10 @@ class SpotifyBackend:
         self._status = map_status(None)
         self._status_lock = threading.Lock()
         self.status_thread = None
+        #: Podcast, audiobook or episode URI whose position is tracked, or None
+        self._resume_uri = None
+        #: Changes around every load, so status read before a load is not tracked
+        self._load_generation = 0
 
     def start(self):
         """Start polling go-librespot for status."""
@@ -122,6 +133,7 @@ class SpotifyBackend:
 
     def exit(self):
         logger.debug("Exit routine of Spotify backend started")
+        self.resume_store.save(force=True)
         if self.status_thread is None:
             return None
         self.status_thread.close()
@@ -131,10 +143,13 @@ class SpotifyBackend:
         self._active = active
         if active:
             publishing.get_publisher().send('playerstatus', self.playerstatus())
+        else:
+            self._stop_tracking()
 
     # -- status -------------------------------------------------------------
     def _status_poll(self):
         """Poll go-librespot and publish the mapped status while active."""
+        load_generation = self._load_generation
         try:
             raw = self.client.status()
             self.connected = True
@@ -153,12 +168,38 @@ class SpotifyBackend:
         self._was_playing = playing
         with self._status_lock:
             self._status = status
+        if raw and load_generation == self._load_generation:
+            self._track_resume(raw)
 
         if started_externally and self.on_external_playback is not None:
             logger.info("Spotify Connect playback started from another device")
+            # The other device plays its own content, not what the box was tracking
+            self._stop_tracking()
             self.on_external_playback()
         elif self._active:
             publishing.get_publisher().send('playerstatus', status)
+
+    def _track_resume(self, raw: dict):
+        """Remember the episode and position of the podcast or audiobook playing."""
+        content_uri = self._resume_uri
+        if content_uri is None:
+            return
+        track = raw.get('track') or {}
+        if raw.get('stopped') or not track:
+            # Playback ended: a show or episode that was heard to the end starts over next time
+            entry = self.resume_store.get(content_uri)
+            if entry and is_finished(entry):
+                self.resume_store.remove(content_uri)
+            self.resume_store.save(force=True)
+            return
+        if not (track.get('uri') or '').startswith('spotify:episode:'):
+            return
+        self.resume_store.update(content_uri, track['uri'], track.get('position') or 0, track.get('duration') or 0)
+        self.resume_store.save(force=bool(raw.get('paused')))
+
+    def _stop_tracking(self):
+        self._resume_uri = None
+        self.resume_store.save(force=True)
 
     def playerstatus(self):
         with self._status_lock:
@@ -188,6 +229,8 @@ class SpotifyBackend:
             self.client.stop()
         except GoLibrespotError as e:
             logger.warning(f"Could not stop Spotify playback: {e}")
+        finally:
+            self.resume_store.save(force=True)
 
     def pause(self, state: int = 1):
         """Enforce pause to state (1: pause, 0: resume)"""
@@ -214,7 +257,8 @@ class SpotifyBackend:
         if self.last_played_uri is None:
             logger.info("Nothing to replay: no Spotify content played yet")
             return
-        self.client.load(self.last_played_uri)
+        self.resume_store.remove(self.last_played_uri)
+        self._play_uri(self.last_played_uri)
 
     def rewind(self):
         self.replay()
@@ -270,9 +314,35 @@ class SpotifyBackend:
     # -- content ------------------------------------------------------------
     def _play_uri(self, uri: str):
         normalized = uri_utils.normalize_uri(uri)
-        logger.info(f"Play Spotify content: '{normalized}'")
-        self.client.load(normalized)
+        resumable = uri_utils.parse_uri(normalized)[0] in RESUMABLE_TYPES
+        # Status read during the load belongs to the previous content
+        self._load_generation += 1
+        if self._resume_uri is not None:
+            self._stop_tracking()
+        entry = self.resume_store.get(normalized) if resumable else None
+        if entry:
+            self._resume(normalized, entry)
+        else:
+            logger.info(f"Play Spotify content: '{normalized}'")
+            self.client.load(normalized)
         self.last_played_uri = normalized
+        self._resume_uri = normalized if resumable else None
+        self._load_generation += 1
+
+    def _resume(self, uri: str, entry: dict):
+        """Continue a podcast, audiobook or episode at its saved position."""
+        skip_to_uri = entry['episode'] if entry['episode'] != uri else None
+        logger.info(f"Resume Spotify content '{uri}' at {entry['position_ms'] / 1000:.0f} s of '{entry['episode']}'")
+        try:
+            # Load paused and seek first, so the start of the episode is not heard
+            self.client.load(uri, play=False, skip_to_uri=skip_to_uri)
+            self.client.seek(entry['position_ms'])
+            self.client.resume()
+        except GoLibrespotError as e:
+            # e.g. the saved episode is no longer part of the show
+            logger.warning(f"Could not resume '{uri}', playing from the beginning: {e}")
+            self.resume_store.remove(uri)
+            self.client.load(uri)
 
     def play_single(self, song_url):
         """Play a Spotify track (or any other Spotify URI / share link)"""
@@ -318,17 +388,34 @@ class SpotifyBackend:
                     'kind': 'songs',
                     'content_types': [],
                 },
+                {
+                    'id': 'podcasts',
+                    'label': 'Podcasts',
+                    'kind': 'items',
+                    'content_types': ['podcast'],
+                },
+                {
+                    'id': 'audiobooks',
+                    'label': 'Audiobooks',
+                    'kind': 'items',
+                    'content_types': ['audiobook'],
+                },
             ],
         }
 
     def list_library_items(self, content_types=None):
         if self.web_api is None:
             return []
+        listings = {
+            'playlist': self.web_api.list_playlists,
+            'album': self.web_api.list_saved_albums,
+            'podcast': self.web_api.list_saved_podcasts,
+            'audiobook': self.web_api.list_saved_audiobooks,
+        }
         items = []
-        if content_types is None or 'playlist' in content_types:
-            items.extend(self.web_api.list_playlists())
-        if content_types is None or 'album' in content_types:
-            items.extend(self.web_api.list_saved_albums())
+        for content_type, listing in listings.items():
+            if content_types is None or content_type in content_types:
+                items.extend(listing())
         return items
 
     def list_library_songs(self):

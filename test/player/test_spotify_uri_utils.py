@@ -22,6 +22,15 @@ from components.player.backends.spotify import uri_utils
     # User-context playlist URI collapses to canonical
     ('spotify:user:someone:playlist:37i9dQZF1DXcBWIGoYBM5M',
      'spotify:playlist:37i9dQZF1DXcBWIGoYBM5M'),
+    # Audiobooks and chapters play as shows and episodes
+    ('https://open.spotify.com/audiobook/0mQsT1xJn88frZ26UIBvlB?si=x',
+     'spotify:show:0mQsT1xJn88frZ26UIBvlB'),
+    ('https://open.spotify.com/chapter/0MROtI23W8tOOcrNNhRpH3',
+     'spotify:episode:0MROtI23W8tOOcrNNhRpH3'),
+    ('spotify:audiobook:0mQsT1xJn88frZ26UIBvlB',
+     'spotify:show:0mQsT1xJn88frZ26UIBvlB'),
+    ('https://open.spotify.com/show/01RC12mzSlrKmYYe2pjxgM',
+     'spotify:show:01RC12mzSlrKmYYe2pjxgM'),
     # Liked Songs collection keeps its user context
     ('spotify:user:some.one_1:collection',
      'spotify:user:some.one_1:collection'),

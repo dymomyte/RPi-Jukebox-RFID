@@ -276,6 +276,8 @@ def test_library_source_describes_spotify_views():
             {'id': 'playlists', 'label': 'Playlists', 'kind': 'items', 'content_types': ['playlist']},
             {'id': 'albums', 'label': 'Albums', 'kind': 'items', 'content_types': ['album']},
             {'id': 'songs', 'label': 'Songs', 'kind': 'songs', 'content_types': []},
+            {'id': 'podcasts', 'label': 'Podcasts', 'kind': 'items', 'content_types': ['podcast']},
+            {'id': 'audiobooks', 'label': 'Audiobooks', 'kind': 'items', 'content_types': ['audiobook']},
         ],
     }
 
@@ -284,11 +286,16 @@ def test_library_items_are_filtered_by_content_type():
     web_api = Mock()
     web_api.list_playlists.return_value = [{'content_type': 'playlist'}]
     web_api.list_saved_albums.return_value = [{'content_type': 'album'}]
+    web_api.list_saved_podcasts.return_value = [{'content_type': 'podcast'}]
+    web_api.list_saved_audiobooks.return_value = [{'content_type': 'audiobook'}]
     backend = make_backend(web_api=web_api)
 
     assert backend.list_library_items(['playlist']) == [{'content_type': 'playlist'}]
     assert backend.list_library_items(['album']) == [{'content_type': 'album'}]
-    assert backend.list_library_items() == [{'content_type': 'playlist'}, {'content_type': 'album'}]
+    assert backend.list_library_items(['podcast', 'audiobook']) == [
+        {'content_type': 'podcast'}, {'content_type': 'audiobook'}]
+    assert [item['content_type'] for item in backend.list_library_items()] == [
+        'playlist', 'album', 'podcast', 'audiobook']
     assert backend.list_library_items(['folder']) == []
 
 

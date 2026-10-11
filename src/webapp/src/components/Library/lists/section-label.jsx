@@ -6,6 +6,8 @@ const COLORS = {
   songs: '#5aa9f8',
   albums: '#b388f0',
   playlists: '#1db954',
+  podcasts: '#f59b23',
+  audiobooks: '#f573a0',
 };
 
 const SectionLabel = ({ kind, children }) => (

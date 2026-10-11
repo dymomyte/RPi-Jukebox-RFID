@@ -23,7 +23,9 @@ The code lives in `src/jukebox/components/player/`:
 * `backends/spotify/go_librespot_client.py`: REST client for go-librespot
 * `backends/spotify/web_api.py`: Spotify Web API wrapper (spotipy, Authorization Code + PKCE)
 * `backends/spotify/uri_utils.py`: normalizes share links to `spotify:<type>:<id>` URIs and
-  accepts the Liked Songs collection URI `spotify:user:<user id>:collection`
+  accepts the Liked Songs collection URI `spotify:user:<user id>:collection`. Audiobook and chapter
+  references map to show and episode URIs: Spotify serves audiobooks as shows with the same id.
+* `backends/spotify/resume.py`: resume positions of podcasts, audiobooks and episodes
 * `spotify_plugin.py`: registers the backend when `spotify.enable` is set, plus the
   `player.spotify` account plugin
 
@@ -39,16 +41,16 @@ Spotify setup cannot keep MPD from loading.
 
 | Contract | Spotify implementation |
 | --- | --- |
-| `play_single(song_url)` | Plays the Spotify URI (normally a track) |
-| `play_album(albumartist, album, content_uri)` | Plays the album, playlist or Liked Songs `content_uri`; raises without it |
+| `play_single(song_url)` | Plays the Spotify URI (normally a track); episodes resume |
+| `play_album(albumartist, album, content_uri)` | Plays the album, playlist, Liked Songs, podcast or audiobook `content_uri`; shows resume; raises without it |
 | Transport, `seek(seconds)` | go-librespot; seek is converted to milliseconds in the backend |
 | `shuffle`, `repeat` | Same options and toggle cycle as MPD, mapped to shuffle/repeat context/track |
 | `playerstatus()` | MPD-shaped dict: `state`, `songid`, `file`, `title`, `artist`, `album`, `elapsed`/`duration` in seconds, `random`/`repeat`/`single`, `cover_url`, `provider` |
 | `set_active(active)` | Status is polled continuously but published only while active |
-| `library_source()` | Source `spotify` with `playlists` and `albums` views (`kind: items`) and a `songs` view (`kind: songs`) |
-| `list_library_items(content_types)` | The user's playlists, led by Liked Songs, and saved albums; playlists carry `tracks_available` |
+| `library_source()` | Source `spotify` with `playlists`, `albums`, `podcasts` and `audiobooks` views (`kind: items`) and a `songs` view (`kind: songs`) |
+| `list_library_items(content_types)` | The user's playlists, led by Liked Songs, saved albums, podcasts and audiobooks; playlists carry `tracks_available` |
 | `list_library_songs()` | The user's Liked Songs as song entries |
-| `list_songs_by_artist_and_album(..., content_uri)`, `get_song_by_url` | Track listings and lookup through the Web API |
+| `list_songs_by_artist_and_album(..., content_uri)`, `get_song_by_url` | Track and episode listings and lookup through the Web API |
 | `get_album_coverart`, `get_single_coverart` | Remote cover URLs from the Web API |
 
 Methods without a Spotify equivalent (folder playback, `playlistinfo`, `queue_load`, ...) are not
@@ -58,6 +60,26 @@ Folder playback always routes to the default backend.
 `stop()` never raises, because the coordinator stops the active backend before switching to
 another one, which must work even if go-librespot is down. It leaves a paused player paused:
 go-librespot 0.7.4 crashes when `/player/stop` is called while paused.
+
+## Resume
+
+Shows (podcasts and audiobooks) and single episodes resume where they stopped. The position is
+kept on the box, keyed by the played content URI, in the file configured as `spotify.resume_file`
+(`shared/settings/spotify_resume.json`):
+
+* The status poll records the current episode and position while such content plays. It skips
+  status read before a load finished (`_load_generation`), so the previous content's position is
+  never stored for the new one.
+* The file is written atomically: at most every 30 seconds while playing, and at once on pause,
+  stop, content or backend switches and shutdown. The 200 most recently played entries are kept.
+* Playing saved content loads it paused at the saved episode (`skip_to_uri`), seeks, then resumes,
+  so the start of the episode is not heard. go-librespot's `/player/play` ignores a start position.
+* When playback stops within 10 seconds of the end of an episode, the entry is removed, so content
+  heard to the end starts over. `replay` also starts over.
+* Spotify Connect playback from another device stops the tracking.
+
+Spotify's own resume points (`resume_point`) would need the `user-read-playback-position` scope and
+go-librespot to report progress, so they are not used.
 
 ## Spotify Connect
 
@@ -89,7 +111,7 @@ The Web App shows the Spotify settings and the card editor search only if
 ## Configuration
 
 Non-secret settings live in the `spotify:` block of `jukebox.yaml` (enable flag, go-librespot
-host/port, poll interval, Web API redirect port and token cache file). The Web API client id is
+host/port, poll interval, resume file, Web API redirect port and token cache file). The Web API client id is
 kept in `shared/settings/spotify.yaml`, loaded through its own `cfghandler` handler like the card
 database. PKCE needs no client secret. The token cache is
 `shared/settings/spotify-token.json`.
@@ -103,7 +125,13 @@ Development Mode apps are subject to Spotify's February 2026 restrictions:
   both are accepted. For other playlists Spotify answers `403`, which the backend turns into an
   empty track listing. Playlist library items and search results carry `tracks_available`, so the
   Web App can explain the missing tracks and still offer to play the playlist or assign it.
-* Search returns at most 10 results per type.
+* Search returns at most 10 results per type. Searches pass `market=from_token`, without which
+  Spotify returns no audiobooks.
+* The saved shows (`/me/shows`) include the saved audiobooks, so the podcast listing leaves out
+  the ids listed by `/me/audiobooks` (which spotipy has no method for). Show and audiobook objects
+  carry no publisher.
+* `/shows/{id}` lists an audiobook's chapters as episodes, so podcasts and audiobooks share one
+  listing.
 * Batch lookups are gone; the backend only uses single-item endpoints.
 
 Playlist, album and track listings are cached for five minutes (`LISTING_TTL`), cover and

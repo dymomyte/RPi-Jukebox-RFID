@@ -1,10 +1,10 @@
 # Spotify
 
-The Jukebox can play Spotify tracks, albums and playlists from a card swipe or the Web App,
-alongside the local music library. Playback is handled by
+The Jukebox can play Spotify tracks, albums, playlists, podcasts and audiobooks from a card swipe
+or the Web App, alongside the local music library. Playback is handled by
 [go-librespot](https://github.com/devgianlu/go-librespot), controlled through its local REST API.
-Browsing your playlists, albums and Liked Songs and searching the Spotify catalog in the Web App use the
-Spotify Web API.
+Browsing your playlists, albums, Liked Songs, podcasts and audiobooks and searching the Spotify
+catalog in the Web App use the Spotify Web API.
 
 Spotify is an **optional** player backend. The local music library (MPD) keeps working whether or
 not Spotify is installed, and stays the default for existing cards.
@@ -101,11 +101,23 @@ Spotify content is assigned to cards like local music:
 * **From the library:** in the Web App library, open the **Spotify** source and select one of your
   playlists or saved albums. Assign it to a card, or assign a single track from its track list.
   The **Songs** tab lists your Liked Songs; select one to play it or assign it to a card. To play
-  all of them, use **Liked Songs** at the top of the playlists.
+  all of them, use **Liked Songs** at the top of the playlists. The **Podcasts** and
+  **Audiobooks** tabs list the shows and audiobooks you saved in Spotify; assign a whole one, or a
+  single episode or chapter.
 * **By search:** in the Web App library, open the **Spotify** source and search. Besides your
-  matching playlists and albums, this finds songs, albums and playlists in the whole Spotify
-  catalog. Select a song to play it, or an album or playlist to see its tracks. In the card editor,
-  choose **Play music** and use **Search Spotify** to assign search results directly.
+  matching saved items, this finds songs, albums, playlists, podcasts and audiobooks in the whole
+  Spotify catalog. Select a song to play it, or any other result to see its tracks, episodes or
+  chapters. In the card editor, choose **Play music** and use **Search Spotify** to assign search
+  results directly.
+
+### Podcasts and audiobooks continue where they stopped
+
+A podcast, audiobook or single episode continues where it stopped the next time it is played,
+for example with the next swipe of its card. The Jukebox keeps the position itself in
+`shared/settings/spotify_resume.json`, so it works without a connection to Spotify's servers and
+independently of where you listen in the Spotify app. Once the last episode or chapter has been
+heard to the end, the next play starts from the beginning. A podcast starts with its newest
+episode.
 
 Cards store the Spotify URI together with the provider `spotify`, for example in
 `shared/settings/cards.yaml`:
@@ -119,7 +131,9 @@ Cards store the Spotify URI together with the provider `spotify`, for example in
   args: ['spotify:track:4uLU6hMCjMI75M1A2tKUQC', spotify]
 ```
 
-Share links such as `https://open.spotify.com/album/...` are accepted as well.
+Share links such as `https://open.spotify.com/album/...` are accepted as well, including
+`https://open.spotify.com/audiobook/...` links. Spotify plays audiobooks as shows, so their cards
+store `spotify:show:...` URIs.
 
 Cards registered with the `play_spotify` alias of earlier versions of this integration are
 converted to `play_single` cards when you run `setup_spotify.sh`.

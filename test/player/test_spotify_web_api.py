@@ -181,6 +181,81 @@ def test_liked_songs_metadata_needs_no_request():
     assert client.method_calls == []
 
 
+PODCAST = {'uri': 'spotify:show:POD', 'name': 'Heelers Podcast', 'images': [{'url': 'pod-cover'}]}
+AUDIOBOOK = {'uri': 'spotify:show:BOOK', 'name': 'The Beach', 'authors': [{'name': 'Bluey'}],
+             'images': [{'url': 'book-cover'}]}
+EPISODE = {'uri': 'spotify:episode:E1', 'name': 'Chapter 1', 'duration_ms': 15000, 'images': []}
+
+
+def test_podcasts_leave_out_saved_audiobooks():
+    client = Mock()
+    # Spotify lists saved audiobooks among the saved shows
+    client.current_user_saved_shows.return_value = {'items': [{'show': PODCAST}, {'show': AUDIOBOOK}], 'next': None}
+    client._get.return_value = {'items': [AUDIOBOOK], 'next': None}
+    api = connected_api(client)
+
+    assert api.list_saved_podcasts() == [{
+        'provider': 'spotify', 'content_type': 'podcast', 'content_uri': 'spotify:show:POD',
+        'albumartist': None, 'album': 'Heelers Podcast', 'cover_url': 'pod-cover',
+    }]
+    assert api.list_saved_audiobooks() == [{
+        'provider': 'spotify', 'content_type': 'audiobook', 'content_uri': 'spotify:show:BOOK',
+        'albumartist': 'Bluey', 'album': 'The Beach', 'cover_url': 'book-cover',
+    }]
+    client._get.assert_called_once_with('me/audiobooks', limit=web_api._PAGE_SIZE)
+
+
+def test_show_episodes_are_listed_as_songs():
+    client = Mock()
+    client.show.return_value = {**AUDIOBOOK, 'episodes': {'items': [EPISODE, None], 'next': None}}
+
+    songs = connected_api(client).list_tracks('https://open.spotify.com/audiobook/BOOK')
+
+    client.show.assert_called_once_with('BOOK', market='from_token')
+    assert songs == [{
+        'provider': 'spotify', 'file': 'spotify:episode:E1', 'title': 'Chapter 1', 'artist': 'The Beach',
+        'album': 'The Beach', 'albumartist': 'Bluey', 'track': None, 'duration': 15.0, 'cover_url': 'book-cover',
+    }]
+
+
+def test_episode_lookup():
+    client = Mock()
+    client.episode.return_value = {**EPISODE, 'show': PODCAST}
+
+    song = connected_api(client).get_song('spotify:episode:E1')
+
+    client.episode.assert_called_once_with('E1', market='from_token')
+    assert (song['title'], song['album'], song['cover_url']) == ('Chapter 1', 'Heelers Podcast', 'pod-cover')
+
+
+def test_search_finds_podcasts_audiobooks_and_episodes_in_the_users_market():
+    client = Mock()
+    client.search.return_value = {
+        'shows': {'items': [PODCAST]},
+        'audiobooks': {'items': [AUDIOBOOK]},
+        'episodes': {'items': [{**EPISODE, 'show': PODCAST}]},
+    }
+
+    results = connected_api(client).search('bluey', types='show,audiobook,episode')
+
+    assert client.search.call_args.kwargs['market'] == 'from_token'
+    assert [(r['type'], r['uri'], r['artists']) for r in results] == [
+        ('show', 'spotify:show:POD', []),
+        ('audiobook', 'spotify:show:BOOK', ['Bluey']),
+        ('episode', 'spotify:episode:E1', ['Heelers Podcast']),
+    ]
+
+
+def test_show_and_episode_metadata():
+    client = Mock()
+    client.show.return_value = AUDIOBOOK
+    client.episode.return_value = {**EPISODE, 'show': PODCAST}
+    api = connected_api(client)
+
+    assert api.get_metadata('spotify:show:BOOK')['cover_url'] == 'book-cover'
+    assert api.get_metadata('spotify:episode:E1')['cover_url'] == 'pod-cover'
+
+
 def test_unlistable_content_raises():
     with pytest.raises(ValueError, match='Cannot list tracks'):
         connected_api(Mock()).list_tracks('spotify:track:T')

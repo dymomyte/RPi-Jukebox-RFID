@@ -70,7 +70,9 @@
             "types": {
               "track": "Track",
               "album": "Album",
-              "playlist": "Playlist"
+              "playlist": "Playlist",
+              "show": "Podcast",
+              "audiobook": "Audiobook"
             }
           }
         },
@@ -150,6 +152,8 @@
       "playlists": "Playlists",
       "tracks": "Tracks",
       "songs": "Songs",
+      "podcasts": "Podcasts",
+      "audiobooks": "Audiobooks",
       "search-spotify-label": "Search your library and Spotify"
     },
     "sources": {
@@ -240,6 +244,8 @@
       "songs": "Songs",
       "albums": "Albums",
       "playlists": "Playlists",
+      "podcasts": "Podcasts",
+      "audiobooks": "Audiobooks",
       "search-error": "Spotify search failed. Check the Spotify Web API connection in the settings.",
       "no-results": "Nothing found on Spotify.",
       "tracks-not-shared": "Spotify doesn't share the tracks of playlists you don't own. You can still play this playlist or assign it to a card."

@@ -13,6 +13,9 @@ URIs that are already canonical.
 
 A user's Liked Songs have no id of their own and use the collection URI
 ``spotify:user:<user id>:collection``, which go-librespot plays as a context.
+
+Spotify serves audiobooks as shows and their chapters as episodes, with the same
+ids. Audiobook and chapter references therefore normalize to show and episode URIs.
 """
 import re
 
@@ -20,17 +23,20 @@ import re
 # Also supports the localized form https://open.spotify.com/intl-de/track/<id>
 _SHARE_LINK_RE = re.compile(
     r'^https?://open\.spotify\.com/(?:intl-[a-z]{2}/)?'
-    r'(?P<type>track|album|playlist|artist|show|episode)/(?P<id>[A-Za-z0-9]+)',
+    r'(?P<type>track|album|playlist|artist|show|episode|audiobook|chapter)/(?P<id>[A-Za-z0-9]+)',
     re.IGNORECASE,
 )
 
 # Already canonical, e.g. spotify:track:<id> (also spotify:user:x:playlist:<id>)
 _URI_RE = re.compile(
     r'^spotify:(?:[A-Za-z0-9]+:)*'
-    r'(?P<type>track|album|playlist|artist|show|episode):(?P<id>[A-Za-z0-9]+)$',
+    r'(?P<type>track|album|playlist|artist|show|episode|audiobook|chapter):(?P<id>[A-Za-z0-9]+)$',
     re.IGNORECASE,
 )
 
+
+# Audiobooks and their chapters play as shows and episodes with the same id
+_TYPE_ALIASES = {'audiobook': 'show', 'chapter': 'episode'}
 
 # A user's Liked Songs, e.g. spotify:user:<user id>:collection
 _COLLECTION_RE = re.compile(r'^spotify:user:(?P<id>[^:\s]+):collection$', re.IGNORECASE)
@@ -57,14 +63,11 @@ def normalize_uri(uri: str) -> str:
     if match:
         return collection_uri(match.group('id'))
 
-    match = _URI_RE.match(candidate)
+    # Pass URIs through, but drop any leading user-context segments
+    match = _URI_RE.match(candidate) or _SHARE_LINK_RE.match(candidate)
     if match:
-        # Pass through, but drop any leading user-context segments
-        return f"spotify:{match.group('type').lower()}:{match.group('id')}"
-
-    match = _SHARE_LINK_RE.match(candidate)
-    if match:
-        return f"spotify:{match.group('type').lower()}:{match.group('id')}"
+        uri_type = match.group('type').lower()
+        return f"spotify:{_TYPE_ALIASES.get(uri_type, uri_type)}:{match.group('id')}"
 
     raise ValueError(f"Not a valid Spotify reference: {uri!r}")
 

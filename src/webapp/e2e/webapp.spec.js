@@ -175,6 +175,18 @@ async function mockBackend(
               kind: 'songs',
               content_types: [],
             },
+            {
+              id: 'podcasts',
+              label: 'Podcasts',
+              kind: 'items',
+              content_types: ['podcast'],
+            },
+            {
+              id: 'audiobooks',
+              label: 'Audiobooks',
+              kind: 'items',
+              content_types: ['audiobook'],
+            },
           ],
         }] : []),
         ...(streamingLibrary ? [{
@@ -229,10 +241,37 @@ async function mockBackend(
           type: 'playlist',
           uri: 'spotify:playlist:mix',
         },
+        {
+          album: null,
+          artists: [],
+          cover_url: null,
+          name: 'Daft Punk Stories Podcast',
+          type: 'show',
+          uri: 'spotify:show:dpstories',
+        },
+        {
+          album: null,
+          artists: ['A Biographer'],
+          cover_url: null,
+          name: 'Daft Punk: The Audiobook',
+          type: 'audiobook',
+          uri: 'spotify:show:dpbook',
+        },
       ];
     }
     if (key === 'list_songs_by_artist_and_album' && payload.kwargs.content_uri === 'spotify:playlist:theirs') {
       result = [];
+    }
+    if (key === 'list_songs_by_artist_and_album' && payload.kwargs.content_uri === 'spotify:show:beach') {
+      result = [1, 2].map(chapter => ({
+        album: 'The Beach and Other Stories',
+        artist: 'The Beach and Other Stories',
+        duration: 300,
+        file: `spotify:episode:chapter${chapter}`,
+        provider: 'spotify',
+        title: `Chapter ${chapter}`,
+        track: null,
+      }));
     }
     if (key === 'list_library_songs' && payload.kwargs.provider === 'spotify') {
       result = [
@@ -279,6 +318,20 @@ async function mockBackend(
           content_uri: 'spotify:playlist:theirs',
           provider: 'spotify',
           tracks_available: false,
+        },
+        {
+          albumartist: null,
+          album: 'Dinner with the Heelers',
+          content_type: 'podcast',
+          content_uri: 'spotify:show:heelers',
+          provider: 'spotify',
+        },
+        {
+          albumartist: 'Bluey',
+          album: 'The Beach and Other Stories',
+          content_type: 'audiobook',
+          content_uri: 'spotify:show:beach',
+          provider: 'spotify',
         },
       ] : [];
       const streamingItems = streamingLibrary ? [{
@@ -578,7 +631,7 @@ test('Spotify search assigns provider-aware album cards', async ({ page }) => {
   await page.keyboard.press('Enter');
   await expect.poll(() => (
     rpcCalls.find(call => call.method === 'search')?.kwargs
-  )).toEqual({ query: 'discovery', types: 'track,album,playlist' });
+  )).toEqual({ query: 'discovery', types: 'track,album,playlist,show,audiobook' });
 
   await page.getByRole('button', { name: 'Discovery' }).click();
   await expect(page.getByText('Selected album')).toBeVisible();
@@ -668,6 +721,40 @@ test('Spotify songs tab lists, filters and plays Liked Songs', async ({ page }) 
   await expect.poll(() => (
     rpcCalls.find(call => call.method === 'search')?.kwargs.query
   )).toBe('cranberries');
+  expect(consoleErrors).toEqual([]);
+});
+
+test('Spotify podcasts and audiobooks can be browsed, played and found', async ({ page }) => {
+  const consoleErrors = collectConsoleErrors(page);
+  const { rpcCalls } = await mockBackend(page, { spotify: true });
+  await page.goto('/#/library/spotify/podcasts');
+
+  await expect(page.getByText('Dinner with the Heelers')).toBeVisible();
+  await expect(page.getByText('The Beach and Other Stories')).toHaveCount(0);
+
+  await page.getByRole('tab', { name: 'Audiobooks' }).click();
+  await page.getByRole('button', { name: /The Beach and Other Stories/ }).click();
+  await expect(page.getByText('Chapter 2')).toBeVisible();
+  await page.getByRole('button', { name: 'Play' }).click();
+  await expect.poll(() => (
+    rpcCalls.find(call => call.method === 'play_album')?.kwargs
+  )).toEqual({
+    albumartist: 'Bluey',
+    album: 'The Beach and Other Stories',
+    content_uri: 'spotify:show:beach',
+    provider: 'spotify',
+  });
+
+  await page.getByRole('tab', { name: 'Podcasts' }).click();
+  await page.getByRole('button', { name: 'Show search' }).click();
+  await page.getByRole('textbox', { name: 'Search your library and Spotify' }).fill('daft');
+  await expect(page.getByRole('heading', { name: 'Podcasts' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Audiobooks' })).toBeVisible();
+  await expect.poll(() => (
+    rpcCalls.find(call => call.method === 'search')?.kwargs.types
+  )).toBe('track,album,playlist,show,audiobook');
+  await page.getByRole('button', { name: /Daft Punk: The Audiobook/ }).click();
+  await expect(page).toHaveURL(/#\/library\/spotify\/audiobooks\/A%20Biographer\/Daft%20Punk%3A%20The%20Audiobook\?content_uri=spotify%3Ashow%3Adpbook/);
   expect(consoleErrors).toEqual([]);
 });
 

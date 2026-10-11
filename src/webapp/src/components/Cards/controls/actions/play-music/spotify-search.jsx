@@ -22,18 +22,20 @@ import SearchIcon from '@mui/icons-material/Search';
 
 import request from '../../../../../utils/request';
 
-const SEARCH_TYPES = 'track,album,playlist';
+const SEARCH_TYPES = 'track,album,playlist,show,audiobook';
 
-// Colour-code the result type so tracks / albums / playlists are
-// distinguishable at a glance. Values map to MUI Chip palette colours.
+// Colour-code the result type so tracks / albums / playlists / podcasts /
+// audiobooks are distinguishable at a glance. Values map to MUI Chip palette colours.
 const TYPE_COLORS = {
   track: 'info',
   album: 'secondary',
   playlist: 'success',
+  show: 'warning',
+  audiobook: 'primary',
 };
 
 // Spotify content is played through the provider-neutral player commands:
-// tracks with play_single, albums and playlists with play_album.
+// tracks with play_single; albums, playlists, podcasts and audiobooks with play_album.
 const searchResultToCommand = ({ type, uri, name, artists = [] }) => (
   type === 'track'
     ? ['play_single', { song_url: uri, provider: 'spotify' }]

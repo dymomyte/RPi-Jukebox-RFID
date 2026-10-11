@@ -103,6 +103,8 @@ spotify:
     port: 3678
   # Interval in seconds for polling go-librespot for the player status
   status_poll_interval: 0.25
+  # Where podcasts and audiobooks remember the episode and position they stopped at
+  resume_file: ../../shared/settings/spotify_resume.json
   web_api:
     # Local redirect port for the Web API authorization (library browsing, search, cover art).
     # The redirect URI registered in the Spotify app must be http://127.0.0.1:<port>/callback (IP, not localhost)
