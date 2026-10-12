@@ -93,6 +93,95 @@ If it does not work immediately, turn your headset off and on to force a reconne
 
 Rerun the config tool to register the Bluetooth device with the Jukebox core app as its secondary audio output.
 
+## Sound card silent at low volume
+
+Some (mostly USB) sound cards output nothing at the bottom of their volume range. The volume slider then has
+to pass a certain value before you hear anything, e.g. 19 out of 100. The card reports volume steps that it
+actually plays as silence, and the audio server uses them.
+
+### Find the cut-off
+
+Look up the card's playback volume control, its range of steps and its decibel range:
+
+```bash
+$ amixer -c <card> contents
+...
+numid=6,iface=MIXER,name='Speaker Playback Volume'
+  ; type=INTEGER,access=rw---R--,values=2,min=0,max=1008,step=0
+  : values=27,27
+  | dBminmax-min=-63.00dB,max=0.00dB
+```
+
+While music plays, set the control to different steps, starting at the bottom, and listen. Note the lowest step
+that makes a sound, and the decibel value `amixer` reports for it:
+
+```bash
+$ amixer -c <card> sset Speaker 17
+$ amixer -c <card> sget Speaker
+  Front Left: Playback 17 [2%] [-61.94dB] [on]
+```
+
+There are two ways to deal with the silent steps. Both are configured per output.
+
+### Option 1: Volume floor
+
+Set `volume_floor` for the output in `jukebox.yaml` (see [Best practice procedure](configuration.md#best-practice-procedure)).
+It is the system volume (in percent) that stands for 0 %; the volume range 1...100 % is scaled into
+`volume_floor...volume_limit`. Choose it so that volume 1 lands on the lowest audible step. This needs no system
+changes, but the quietest volume is only as quiet as that step.
+
+```yaml
+pulse:
+  outputs:
+    primary:
+      volume_limit: 100
+      volume_floor: 8.87
+```
+
+### Option 2: Software volume below the cut-off
+
+The audio server uses the card's hardware volume as far down as the card claims to go, and software volume below
+that. A *decibel fix* tells it where the card's usable range really starts, so the hardware still does all audible
+volume levels and software volume fades smoothly to silence below them. Leave `volume_floor` at 0 for this option.
+
+1. Find the card's USB vendor and product ID with `lsusb` (e.g. `ID 0c76:1203`).
+2. Copy the default profile set under a new name and add a decibel fix for the volume control. List the lowest
+   audible step with its decibel value, and the highest step with its decibel value:
+
+    ```bash
+    $ sudo mkdir -p /etc/alsa-card-profile/mixer/profile-sets
+    $ sudo cp /usr/share/alsa-card-profile/mixer/profile-sets/default.conf \
+        /etc/alsa-card-profile/mixer/profile-sets/usb-sound-card-dbfix.conf
+    $ sudo tee -a /etc/alsa-card-profile/mixer/profile-sets/usb-sound-card-dbfix.conf <<EOF
+
+    [DecibelFix Speaker]
+    db-values = 17:-61.94 1008:0.00
+    EOF
+    ```
+
+3. Assign the profile set to the card with a udev rule, using its IDs:
+
+    ```bash
+    $ echo 'SUBSYSTEM=="sound", ACTION=="change", KERNEL=="card*", ATTRS{idVendor}=="0c76", ATTRS{idProduct}=="1203", ENV{ACP_PROFILE_SET}="usb-sound-card-dbfix.conf"' \
+        | sudo tee /etc/udev/rules.d/91-usb-sound-card-dbfix.rules
+    $ sudo udevadm control --reload
+    $ sudo udevadm trigger --action=change --subsystem-match=sound
+    ```
+
+4. Restart the audio server and the Jukebox:
+
+    ```bash
+    $ systemctl --user restart wireplumber pipewire pipewire-pulse
+    $ systemctl --user restart jukebox-daemon
+    ```
+
+5. Check: with the volume set very low, `amixer -c <card> sget Speaker` must stay at the step from the decibel fix.
+
+> [!NOTE]
+> On systems running PulseAudio instead of PipeWire, put the profile set into
+> `/usr/share/pulseaudio/alsa-mixer/profile-sets/`, set `ENV{PULSE_PROFILE_SET}` in the udev rule
+> and restart `pulseaudio` instead.
+
 ## Additional options
 
 For other audio configuration options, please look at the `jukebox.yaml` for now.
