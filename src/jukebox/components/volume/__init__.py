@@ -76,7 +76,19 @@ def clamp(n, minn, maxn):
 
 AudioSinkClass = collections.namedtuple('AudioSink', ['alias',
                                                        'pulse_sink_name',
-                                                       'volume_limit'])
+                                                       'volume_limit',
+                                                       'volume_floor'],
+                                         defaults=[0])
+
+
+def to_sink_volume(volume, volume_floor, volume_limit):
+    """Scale a user volume 1...100 into volume_floor...volume_limit of the sink (all in percent)"""
+    return volume_floor + (volume_limit - volume_floor) * volume / 100
+
+
+def from_sink_volume(sink_volume, volume_floor, volume_limit):
+    """Scale a sink volume back into the user volume range (all in percent); at or below the floor is 0"""
+    return max(0, int(round(100 * (sink_volume - volume_floor) / (volume_limit - volume_floor))))
 
 
 class AudioMonitor(threading.Thread):
@@ -351,8 +363,8 @@ class VolumeControl:
     def __init__(self, sink_list: List[AudioSinkClass]):
         self._sink_list: List[AudioSinkClass] = sink_list
         logger.debug(f'Configured audio sinks: {self._sink_list}')
-        # Prepare quick look-ups for volume_limit
-        self._volume_limit = {x.pulse_sink_name: x.volume_limit / 100.0 for x in self._sink_list}
+        # Prepare quick look-ups for the volume range (floor, limit) of each sink
+        self._volume_range = {x.pulse_sink_name: (x.volume_floor, x.volume_limit) for x in self._sink_list}
         self._soft_max_volume = cfg.setndefault('pulse', 'soft_max_volume', value=100)
 
         # For both callback handler: We use the context lock only explicitly for registering new functions
@@ -383,7 +395,7 @@ class VolumeControl:
         else:
             # Always make sure, we are not muted!
             pulse_inst.mute(sink, mute=False)
-            volume = volume * self._volume_limit.get(sink_name, 1)
+            volume = to_sink_volume(volume, *self._volume_range.get(sink_name, (0, 100)))
             pulse_inst.volume_set_all_chans(sink, volume / 100.0)
         self._publish_volume(pulse_inst)
 
@@ -392,7 +404,7 @@ class VolumeControl:
             sink_name = pulse_inst.server_info().default_sink_name
         sink = pulse_inst.get_sink_by_name(sink_name)
         mute = sink.mute
-        volume = int(round(100 * pulse_inst.volume_get_all_chans(sink) / self._volume_limit.get(sink_name, 1)))
+        volume = from_sink_volume(100 * pulse_inst.volume_get_all_chans(sink), *self._volume_range.get(sink_name, (0, 100)))
         if mute == 1:
             volume = 0
         return volume, mute
@@ -577,6 +589,15 @@ volume_control: VolumeControl
 audio_monitor: AudioMonitor
 
 
+def valid_volume_floor(output, volume_floor, volume_limit):
+    """Return volume_floor if it lies below volume_limit, else 0 (no floor)"""
+    if 0 <= volume_floor < volume_limit:
+        return volume_floor
+    logger.error(f"Ignoring volume_floor {volume_floor} of {output} audio output: "
+                 f"it must be at least 0 and below volume_limit {volume_limit}")
+    return 0
+
+
 def parse_config() -> List[AudioSinkClass]:
     global audio_monitor
 
@@ -591,6 +612,7 @@ def parse_config() -> List[AudioSinkClass]:
         key = 'primary'
         alias = cfg.setndefault('pulse', 'outputs', key, 'alias', value='Unset alias')
         volume_limit = cfg.setndefault('pulse', 'outputs', key, 'volume_limit', value=100)
+        volume_floor = valid_volume_floor(key, cfg.setndefault('pulse', 'outputs', key, 'volume_floor', value=0), volume_limit)
         pulse_sink_name = cfg.getn('pulse', 'outputs', key, 'pulse_sink_name', default=None)
         if pulse_sink_name is None:
             pulse_sink_name = default_sink_name
@@ -601,12 +623,13 @@ def parse_config() -> List[AudioSinkClass]:
             # No need to change sink here, set_output later falls back to default_sink
             # We just reset volume scaling to unsuspecting 100 %
             volume_limit = 100
+            volume_floor = 0
             logger.error(f"Configured sink '{pulse_sink_name}' not available sinks '{all_sinks}!\n"
                          f"Using default sink '{default_sink_name}' as fallback\n"
                          f"Things like audio sink toggle and volume limit will not work as expected!\n"
                          f"Please run audio config tool: ./installation/components/setup_configure_audio.sh")
 
-        sink_list.append(AudioSinkClass(alias, pulse_sink_name, volume_limit))
+        sink_list.append(AudioSinkClass(alias, pulse_sink_name, volume_limit, volume_floor))
         key = 'secondary'
         pulse_sink_name = cfg.getn('pulse', 'outputs', key, 'pulse_sink_name', default=None)
         # No need to check validity of pulse sink name: this could be a disconnected bluetooth device
@@ -616,7 +639,9 @@ def parse_config() -> List[AudioSinkClass]:
             # Only need to get the configuration, if device is actually configured
             alias = cfg.setndefault('pulse', 'outputs', key, 'alias', value='Unset alias')
             volume_limit = cfg.setndefault('pulse', 'outputs', key, 'volume_limit', value=100)
-            sink_list.append(AudioSinkClass(alias, pulse_sink_name, volume_limit))
+            volume_floor = valid_volume_floor(
+                key, cfg.setndefault('pulse', 'outputs', key, 'volume_floor', value=0), volume_limit)
+            sink_list.append(AudioSinkClass(alias, pulse_sink_name, volume_limit, volume_floor))
     return sink_list
 
 

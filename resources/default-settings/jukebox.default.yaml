@@ -46,16 +46,22 @@ pulse:
   #                 i.e. the user input range 0...100 % will be scaled into this range
   #                 this can be used to attenuate the maximum volume levels between different outputs
   #                 i.e. make both channels equally load out 100 % and make sure it never gets too loud
+  # - volume_floor: a volume just below the quietest audible level, representing the new 0 %
+  #                 i.e. the user input range 1...100 % will be scaled into volume_floor...volume_limit,
+  #                 so 1 % is just audible instead of silent (0 % still mutes)
+  #                 this helps with sound cards that are silent at the bottom of their volume range
   outputs:
     primary:
       alias: Built-in speakers
       volume_limit: 100
+      volume_floor: 0
       soft_max_volume: 100
       # Leave pulse_sink_name empty for first start-up (will be filled with systems default sink)
       # pulse_sink_name: alsa_output.pci-0000_00_1f.3.analog-stereo
     secondary:
       alias: Bluetooth headset
       volume_limit: 100
+      volume_floor: 0
       soft_max_volume: 100
       # Leave pulse_sink_name unfilled to disable secondary output
       # pulse_sink_name: bluez_sink.C4_FB_20_63_CO_FE.a2dp_sink
